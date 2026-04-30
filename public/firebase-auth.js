@@ -216,7 +216,7 @@ function getItemDisplayName(item) {
 }
 
 function getInitials(item) {
-  return getItemDisplayName(item).slice(0, 2).toUpperCase();
+  return "";
 }
 
 function isPresenceOnline(presence) {
@@ -422,7 +422,7 @@ function renderFriendsPanel() {
           </div>
           <div class="friend-item-actions">
             ${actionMarkup}
-            <div class="friend-badge">${initials}</div>
+            ${hasSearch ? `<div class="friend-badge">${initials}</div>` : ""}
           </div>
         </article>
       `;

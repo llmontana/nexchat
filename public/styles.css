@@ -403,6 +403,14 @@ button:disabled {
   flex-direction: column;
   gap: 16px;
   min-height: 72vh;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(255, 95, 109, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(255, 195, 113, 0.1), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(71, 207, 115, 0.08), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(79, 172, 254, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(17, 20, 27, 0.9), rgba(17, 20, 27, 0.82));
 }
 
 .premium-header {
@@ -426,6 +434,10 @@ button:disabled {
   background-image: linear-gradient(140deg, #2bf1b7, #68a8ff);
   color: white;
   font-weight: 700;
+}
+
+body.is-desktop .diamond-count-badge {
+  display: none;
 }
 
 .diamond-hero {
@@ -806,6 +818,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .friend-action-button {
@@ -825,6 +838,10 @@ button:disabled {
   white-space: nowrap;
 }
 
+body.is-desktop .friend-item.selectable .friend-item-actions {
+  justify-content: flex-end;
+}
+
 .friend-badge {
   min-width: 42px;
   height: 42px;
@@ -837,6 +854,10 @@ button:disabled {
   font-size: 0.8rem;
   font-weight: 700;
   animation: rainbow-shift 8s linear infinite;
+}
+
+body.is-desktop .friend-badge {
+  font-size: 0;
 }
 
 .friend-empty {
