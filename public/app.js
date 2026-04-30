@@ -14,7 +14,6 @@ const remoteVideo = document.getElementById("remoteVideo");
 const remotePlaceholder = document.getElementById("remotePlaceholder");
 const statusBadge = document.getElementById("statusBadge");
 const eventLog = document.getElementById("eventLog");
-const deviceBadge = document.getElementById("deviceBadge");
 const mobileDrawerToggle = document.getElementById("mobileDrawerToggle");
 const logoutButton = document.getElementById("logoutButton");
 const mobileHomeTab = document.getElementById("mobileHomeTab");
@@ -76,8 +75,6 @@ function applyDeviceMode() {
   document.body.classList.toggle("is-mobile", isMobile);
   document.body.classList.toggle("is-desktop", !isMobile);
   document.body.classList.toggle("mobile-controls-collapsed", isMobile && mobileControlsCollapsed);
-  deviceBadge.textContent = isMobile ? "Mobile Mode" : "Desktop Mode";
-
   if (!isMobile) {
     mobileControlsCollapsed = false;
     mobileDrawerToggle.setAttribute("aria-expanded", "true");
