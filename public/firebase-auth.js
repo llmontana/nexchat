@@ -10,6 +10,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   doc,
+  getDoc,
   getFirestore,
   serverTimestamp,
   setDoc
@@ -39,9 +40,15 @@ const authStatus = document.getElementById("authStatus");
 const logoutButton = document.getElementById("logoutButton");
 const sessionBadge = document.getElementById("sessionBadge");
 const googleLoginButton = document.getElementById("googleLoginButton");
+const usernameOverlay = document.getElementById("usernameOverlay");
+const usernameForm = document.getElementById("usernameForm");
+const usernameInput = document.getElementById("usernameInput");
+const usernameSubmitButton = document.getElementById("usernameSubmitButton");
+const usernameStatus = document.getElementById("usernameStatus");
 
 let authMode = "login";
 const googleProvider = new GoogleAuthProvider();
+let pendingProfileUser = null;
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -57,24 +64,76 @@ function updateAuthMode() {
 }
 
 async function ensureUserProfile(user) {
+  const userRef = doc(db, "users", user.uid);
+  const snapshot = await getDoc(userRef);
+
   await setDoc(
-    doc(db, "users", user.uid),
+    userRef,
     {
       uid: user.uid,
       email: user.email || "",
       provider: user.providerData?.[0]?.providerId || "password",
-      createdAt: serverTimestamp(),
+      createdAt: snapshot.exists() ? snapshot.data().createdAt || serverTimestamp() : serverTimestamp(),
       lastLoginAt: serverTimestamp(),
       isBanned: false
     },
     { merge: true }
   );
+
+  return snapshot.exists() ? snapshot.data() : null;
 }
 
 function setAuthUiBusy(busy) {
   authSubmitButton.disabled = busy;
   authModeButton.disabled = busy;
   googleLoginButton.disabled = busy;
+}
+
+function setUsernameStatus(text, isError = false) {
+  usernameStatus.textContent = text;
+  usernameStatus.classList.toggle("error", isError);
+}
+
+function normalizeUsername(value) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+}
+
+function openUsernameSetup(user, suggestedName = "") {
+  pendingProfileUser = user;
+  authOverlay.classList.add("hidden");
+  usernameOverlay.classList.remove("hidden");
+  usernameInput.value = suggestedName;
+  setUsernameStatus("Kullanici adini belirle");
+  setTimeout(() => usernameInput.focus(), 0);
+}
+
+async function finalizeSignedInUser(user, existingProfile) {
+  const username = existingProfile?.username?.trim();
+  if (!username) {
+    const fallbackName = user.displayName
+      ? user.displayName.replace(/\s+/g, "").toLowerCase()
+      : "";
+    openUsernameSetup(user, fallbackName);
+    return;
+  }
+
+  usernameOverlay.classList.add("hidden");
+  authOverlay.classList.add("hidden");
+  sessionBadge.textContent = `${username} @ ${user.email || "aktif"}`;
+  logoutButton.disabled = false;
+  setAuthStatus("Giris basarili");
+  window.dispatchEvent(
+    new CustomEvent("auth-state", {
+      detail: {
+        authenticated: true,
+        user: {
+          uid: user.uid,
+          email: user.email || "",
+          username
+        }
+      }
+    })
+  );
 }
 
 async function signInWithProvider(provider, providerName) {
@@ -127,6 +186,42 @@ googleLoginButton.addEventListener("click", async () => {
   await signInWithProvider(googleProvider, "Google");
 });
 
+usernameForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!pendingProfileUser) {
+    setUsernameStatus("Aktif kullanici bulunamadi.", true);
+    return;
+  }
+
+  const username = normalizeUsername(usernameInput.value);
+  if (username.length < 3) {
+    setUsernameStatus("Kullanici adi en az 3 karakter olmali ve sadece harf, rakam, _ icermeli.", true);
+    return;
+  }
+
+  usernameSubmitButton.disabled = true;
+  setUsernameStatus("Kaydediliyor...");
+
+  try {
+    await setDoc(
+      doc(db, "users", pendingProfileUser.uid),
+      {
+        username,
+        usernameLower: username
+      },
+      { merge: true }
+    );
+
+    usernameOverlay.classList.add("hidden");
+    await finalizeSignedInUser(pendingProfileUser, { username });
+  } catch (error) {
+    setUsernameStatus(error.message, true);
+  } finally {
+    usernameSubmitButton.disabled = false;
+  }
+});
+
 logoutButton.addEventListener("click", async () => {
   logoutButton.disabled = true;
 
@@ -142,22 +237,8 @@ logoutButton.addEventListener("click", async () => {
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
-      await ensureUserProfile(user);
-      authOverlay.classList.add("hidden");
-      sessionBadge.textContent = user.email || "Giris yapildi";
-      logoutButton.disabled = false;
-      setAuthStatus("Giris basarili");
-      window.dispatchEvent(
-        new CustomEvent("auth-state", {
-          detail: {
-            authenticated: true,
-            user: {
-              uid: user.uid,
-              email: user.email || ""
-            }
-          }
-        })
-      );
+      const existingProfile = await ensureUserProfile(user);
+      await finalizeSignedInUser(user, existingProfile);
     } catch (error) {
       setAuthStatus(error.message, true);
     }
@@ -166,9 +247,12 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   authOverlay.classList.remove("hidden");
+  usernameOverlay.classList.add("hidden");
   sessionBadge.textContent = "Giris yapilmadi";
   logoutButton.disabled = true;
   authPassword.value = "";
+  usernameInput.value = "";
+  pendingProfileUser = null;
   window.dispatchEvent(
     new CustomEvent("auth-state", {
       detail: {

@@ -60,6 +60,32 @@
         <div id="authStatus" class="auth-status">Hazir</div>
       </div>
     </section>
+    <section id="usernameOverlay" class="auth-overlay hidden">
+      <div class="auth-card">
+        <div class="auth-badge">Profil Kurulumu</div>
+        <h2>Kullanici Adini Sec</h2>
+        <p class="auth-copy">
+          Ilk girisinde bir kullanici adi belirle. Bu ad profilinde saklanacak.
+        </p>
+
+        <form id="usernameForm" class="auth-form">
+          <input
+            id="usernameInput"
+            type="text"
+            placeholder="Kullanici adi"
+            minlength="3"
+            maxlength="20"
+            autocomplete="nickname"
+            required
+          />
+          <button id="usernameSubmitButton" class="primary-button" type="submit">
+            Devam Et
+          </button>
+        </form>
+
+        <div id="usernameStatus" class="auth-status">Hazir</div>
+      </div>
+    </section>
     <main class="app-shell">
       <section class="hero-card">
         <div class="eyebrow">Nex Anonim Görüntülü Sohbet</div>
