@@ -3,6 +3,7 @@ const socket = io();
 const startButton = document.getElementById("startButton");
 const findButton = document.getElementById("findButton");
 const nextButton = document.getElementById("nextButton");
+const reportButton = document.getElementById("reportButton");
 const toggleMicButton = document.getElementById("toggleMicButton");
 const toggleCameraButton = document.getElementById("toggleCameraButton");
 const localVideo = document.getElementById("localVideo");
@@ -30,6 +31,7 @@ let mediaReady = false;
 let isMatching = false;
 let isConnected = false;
 let mobileControlsCollapsed = false;
+let reportInFlight = false;
 
 function detectMobileLayout() {
   const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
@@ -83,6 +85,7 @@ function syncActionButtons() {
   startButton.disabled = mediaReady;
   findButton.disabled = !mediaReady || isMatching || isConnected;
   nextButton.disabled = !mediaReady || (!isMatching && !isConnected);
+  reportButton.disabled = !isConnected || reportInFlight;
 }
 
 function logEvent(text) {
@@ -94,8 +97,32 @@ function logEvent(text) {
 }
 
 function setDeviceControlsEnabled(enabled) {
+  reportButton.disabled = !enabled || !isConnected || reportInFlight;
   toggleMicButton.disabled = !enabled;
   toggleCameraButton.disabled = !enabled;
+}
+
+function captureRemoteFrame() {
+  if (!remoteVideo.srcObject || remoteVideo.readyState < 2) {
+    return null;
+  }
+
+  const canvas = document.createElement("canvas");
+  const sourceWidth = remoteVideo.videoWidth || 640;
+  const sourceHeight = remoteVideo.videoHeight || 360;
+  const maxWidth = 640;
+  const scale = Math.min(1, maxWidth / sourceWidth);
+
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+
+  context.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.72);
 }
 
 function setConnectedState(connected) {
@@ -305,9 +332,32 @@ mobileDrawerToggle.addEventListener("click", () => {
   syncMobileDrawerState();
 });
 
+reportButton.addEventListener("click", () => {
+  if (!isConnected || reportInFlight) {
+    return;
+  }
+
+  const imageData = captureRemoteFrame();
+  if (!imageData) {
+    logEvent("Rapor icin goruntu alinamadi.");
+    return;
+  }
+
+  reportInFlight = true;
+  syncActionButtons();
+  setStatus("Rapor inceleniyor...");
+  logEvent("Rapor AI moderasyonuna gonderildi.");
+  socket.emit("report-user", { imageData });
+});
+
 socket.on("status", (text) => {
   setStatus(text);
   logEvent(text);
+});
+
+socket.on("connect_error", (error) => {
+  setStatus("Baglanti engellendi");
+  logEvent(error.message || "Sunucu baglantisi kurulamadı.");
 });
 
 socket.on("waiting", () => {
@@ -343,6 +393,19 @@ socket.on("partner-left", () => {
   setStatus("Partner ayrildi");
   logEvent("Partner ayrildi. Tekrar baslatip yeni eslesme arayabilirsin.");
   syncActionButtons();
+});
+
+socket.on("report-result", ({ ok, actionTaken, message }) => {
+  reportInFlight = false;
+  syncActionButtons();
+  setStatus(ok ? "Rapor tamamlandi" : "Rapor hatasi");
+  logEvent(message || (actionTaken ? "Kullanici engellendi." : "Rapor tamamlandi."));
+});
+
+socket.on("moderation-ban", ({ message }) => {
+  cleanupPeerConnection();
+  setStatus("Erisim engellendi");
+  logEvent(message || "Uygunsuz icerik nedeniyle erisim engellendi.");
 });
 
 socket.on("webrtc-offer", async (offer) => {
