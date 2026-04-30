@@ -502,6 +502,30 @@ button:disabled {
   opacity: 0.94;
 }
 
+.premium-option-card.premium-option-girl {
+  background:
+    radial-gradient(circle at top left, rgba(255, 105, 180, 0.12), transparent 42%),
+    linear-gradient(160deg, rgba(255, 192, 203, 0.09), rgba(255, 255, 255, 0.035));
+  border-color: rgba(255, 160, 208, 0.18);
+}
+
+.premium-option-card.premium-option-boy {
+  background:
+    radial-gradient(circle at top left, rgba(79, 172, 254, 0.14), transparent 42%),
+    linear-gradient(160deg, rgba(126, 198, 255, 0.09), rgba(255, 255, 255, 0.035));
+  border-color: rgba(124, 190, 255, 0.18);
+}
+
+.premium-option-card.premium-option-girl .premium-cost {
+  background: rgba(255, 192, 203, 0.1);
+  border-color: rgba(255, 160, 208, 0.18);
+}
+
+.premium-option-card.premium-option-boy .premium-cost {
+  background: rgba(126, 198, 255, 0.1);
+  border-color: rgba(124, 190, 255, 0.18);
+}
+
 .premium-cost {
   min-width: 56px;
   padding: 9px 10px;

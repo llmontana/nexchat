@@ -13,10 +13,13 @@ const CONTENT_SAFETY_KEY = process.env.CONTENT_SAFETY_KEY;
 const CONTENT_SAFETY_API_VERSION = process.env.CONTENT_SAFETY_API_VERSION || "2024-09-15-preview";
 const SEXUAL_SEVERITY_THRESHOLD = Number(process.env.SEXUAL_SEVERITY_THRESHOLD || 4);
 const BAN_DURATION_MS = Number(process.env.BAN_DURATION_MS || 24 * 60 * 60 * 1000);
+const FIREBASE_WEB_API_KEY =
+  process.env.FIREBASE_WEB_API_KEY || "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs";
 let waitingSocketId = null;
 
 const peers = new Map();
 const socketProfiles = new Map();
+const authenticatedSockets = new Map();
 const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"]);
 const bannedIps = new Map();
 
@@ -109,6 +112,38 @@ async function analyzeImageForNudity(base64Image) {
   };
 }
 
+async function verifyFirebaseIdToken(idToken) {
+  if (!FIREBASE_WEB_API_KEY) {
+    throw new Error("Firebase API anahtari ayarlanmamis.");
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        idToken
+      })
+    }
+  );
+
+  const data = await response.json();
+  if (!response.ok || !Array.isArray(data.users) || data.users.length === 0) {
+    const message =
+      data?.error?.message || `Kimlik dogrulamasi basarisiz oldu (${response.status}).`;
+    throw new Error(message);
+  }
+
+  const [user] = data.users;
+  return {
+    uid: user.localId || "",
+    email: user.email || ""
+  };
+}
+
 app.use((request, response, next) => {
   const ip = getRequestIp(request);
   const banRecord = getBanRecord(ip);
@@ -127,11 +162,11 @@ function pairSockets(firstId, secondId) {
 
   io.to(firstId).emit("partner-found", {
     initiator: true,
-    partnerProfile: socketProfiles.get(secondId) || null
+    partnerProfile: getPublicProfile(secondId)
   });
   io.to(secondId).emit("partner-found", {
     initiator: false,
-    partnerProfile: socketProfiles.get(firstId) || null
+    partnerProfile: getPublicProfile(firstId)
   });
 }
 
@@ -197,6 +232,22 @@ function leaveConversation(socket, shouldRequeue) {
   }
 }
 
+function getPublicProfile(socketId) {
+  const profile = socketProfiles.get(socketId);
+  if (!profile) {
+    return null;
+  }
+
+  return {
+    uid: profile.uid,
+    username: profile.username
+  };
+}
+
+function isSocketAuthenticated(socketId) {
+  return authenticatedSockets.has(socketId);
+}
+
 app.use(express.static(path.join(__dirname, "public")));
 
 io.use((socket, next) => {
@@ -214,29 +265,74 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   socket.emit("status", "Sunucuya bağlandın.");
 
+  socket.on("authenticate-user", async ({ idToken }) => {
+    if (typeof idToken !== "string" || idToken.trim().length === 0) {
+      socket.emit("authentication-result", {
+        ok: false,
+        message: "Gecerli bir kimlik belirteci gerekli."
+      });
+      return;
+    }
+
+    try {
+      const authUser = await verifyFirebaseIdToken(idToken.trim());
+      authenticatedSockets.set(socket.id, authUser);
+      socket.emit("authentication-result", {
+        ok: true
+      });
+    } catch (error) {
+      authenticatedSockets.delete(socket.id);
+      socketProfiles.delete(socket.id);
+      removeFromQueue(socket.id);
+      socket.emit("authentication-result", {
+        ok: false,
+        message: error.message
+      });
+    }
+  });
+
+  socket.on("sign-out", () => {
+    authenticatedSockets.delete(socket.id);
+    socketProfiles.delete(socket.id);
+    leaveConversation(socket, false);
+  });
+
   socket.on("user-profile", (profile) => {
-    if (!profile || typeof profile !== "object") {
+    const authUser = authenticatedSockets.get(socket.id);
+    if (!authUser || !profile || typeof profile !== "object") {
       return;
     }
 
     const username =
       typeof profile.username === "string" ? profile.username.trim().slice(0, 20) : "";
-    const email = typeof profile.email === "string" ? profile.email.trim().slice(0, 120) : "";
     const uid = typeof profile.uid === "string" ? profile.uid.trim().slice(0, 128) : "";
+    if (!uid || uid !== authUser.uid) {
+      socket.emit("status", "Profil dogrulamasi basarisiz.");
+      return;
+    }
 
     socketProfiles.set(socket.id, {
       username,
-      email,
       uid
     });
 
     const partnerId = getPartnerId(socket.id);
     if (partnerId) {
-      io.to(partnerId).emit("partner-profile", socketProfiles.get(socket.id));
+      io.to(partnerId).emit("partner-profile", getPublicProfile(socket.id));
     }
   });
 
   socket.on("find-partner", () => {
+    if (!isSocketAuthenticated(socket.id)) {
+      socket.emit("status", "Eslesmek icin once giris yapman gerekiyor.");
+      return;
+    }
+
+    if (!socketProfiles.has(socket.id)) {
+      socket.emit("status", "Profilin hazir degil, lutfen tekrar giris yap.");
+      return;
+    }
+
     if (getPartnerId(socket.id)) {
       socket.emit("status", "Zaten bir eşleşmen var.");
       return;
@@ -317,6 +413,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     leaveConversation(socket, false);
     socketProfiles.delete(socket.id);
+    authenticatedSockets.delete(socket.id);
   });
 });
 

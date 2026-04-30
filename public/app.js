@@ -64,6 +64,14 @@ function syncMobileTabs() {
   mobileHomeTab.classList.toggle("active", mobileActiveTab === "home");
   mobileFriendsTab.classList.toggle("active", mobileActiveTab === "friends");
   mobilePremiumTab.classList.toggle("active", mobileActiveTab === "premium");
+  window.dispatchEvent(
+    new CustomEvent("mobile-tab-change", {
+      detail: {
+        activeTab: mobileActiveTab,
+        mobile: isMobile
+      }
+    })
+  );
 }
 
 function detectMobileLayout() {
@@ -540,26 +548,39 @@ window.addEventListener("auth-state", ({ detail }) => {
   isAuthenticated = Boolean(detail?.authenticated);
 
   if (!isAuthenticated) {
+    socket.emit("sign-out");
     leaveActiveSession();
     resetLocalMedia();
     currentUserProfile = null;
+    currentPartnerProfile = null;
     setLocalLabel("");
     setRemoteLabel("");
     setStatus("Giriş yapman gerekiyor");
     logEvent("Sohbete devam etmek için giriş yap.");
   } else {
     currentUserProfile = detail.user;
-    setLocalLabel(detail.user.username || "");
-    socket.emit("user-profile", {
-      uid: detail.user.uid || "",
-      username: detail.user.username || "",
-      email: detail.user.email || ""
+    socket.emit("authenticate-user", {
+      idToken: detail.idToken || ""
     });
+    setLocalLabel(detail.user.username || "");
     setStatus("Giriş yapıldı");
     logEvent(`${detail.user.username || detail.user.email} ile oturum acildi.`);
   }
 
   syncActionButtons();
+});
+
+socket.on("authentication-result", ({ ok, message }) => {
+  if (ok && currentUserProfile) {
+    socket.emit("user-profile", {
+      uid: currentUserProfile.uid || "",
+      username: currentUserProfile.username || ""
+    });
+    return;
+  }
+
+  setStatus("Giriş doğrulanamadı");
+  logEvent(message || "Sunucu oturumu doğrulanamadı.");
 });
 
 socket.on("webrtc-offer", async (offer) => {

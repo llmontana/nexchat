@@ -89,6 +89,7 @@ let incomingUnsubscribe = null;
 let outgoingUnsubscribe = null;
 let chatUnsubscribe = null;
 let searchTimeoutId = null;
+const mutualRequestResolutions = new Set();
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -175,7 +176,7 @@ function getConversationId(uidA, uidB) {
 }
 
 function getItemDisplayName(item) {
-  return item?.username || item?.email || "isimsiz";
+  return item?.username || "isimsiz";
 }
 
 function getInitials(item) {
@@ -322,7 +323,7 @@ function renderFriendsPanel() {
       const initials = escapeHtml(getInitials(item));
       const title = escapeHtml(getItemDisplayName(item));
       const subtitle = escapeHtml(hasSearch ? "Kullanıcı bulundu" : "Mesajlaşmaya hazır");
-      const isSelected = !hasSearch && selectedFriend?.uid === item.uid;
+      const isSelected = !hasSearch && isChatPanelOpen && selectedFriend?.uid === item.uid;
 
       let actionMarkup = "";
       if (hasSearch) {
@@ -380,6 +381,35 @@ async function ensureUserProfile(user) {
   );
 
   return snapshot.exists() ? snapshot.data() : null;
+}
+
+async function maybeResolveMutualRequests() {
+  if (!currentUserProfile) {
+    return;
+  }
+
+  const currentUid = currentUserProfile.uid;
+  const outgoingByUid = new Set(currentOutgoingRequests.map((item) => item.uid));
+
+  for (const incomingRequest of currentIncomingRequests) {
+    if (!incomingRequest?.uid || !outgoingByUid.has(incomingRequest.uid)) {
+      continue;
+    }
+
+    const lockKey = [currentUid, incomingRequest.uid].sort().join("__");
+    if (mutualRequestResolutions.has(lockKey) || currentUid > incomingRequest.uid) {
+      continue;
+    }
+
+    mutualRequestResolutions.add(lockKey);
+    try {
+      await createFriendship(incomingRequest);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      mutualRequestResolutions.delete(lockKey);
+    }
+  }
 }
 
 function clearChatSubscription() {
@@ -467,11 +497,13 @@ function subscribeSocialCollections(uid) {
 
   incomingUnsubscribe = onSnapshot(collection(db, "users", uid, "incomingRequests"), (snapshot) => {
     currentIncomingRequests = snapshot.docs.map((docSnapshot) => docSnapshot.data());
+    void maybeResolveMutualRequests();
     renderFriendsPanel();
   });
 
   outgoingUnsubscribe = onSnapshot(collection(db, "users", uid, "outgoingRequests"), (snapshot) => {
     currentOutgoingRequests = snapshot.docs.map((docSnapshot) => docSnapshot.data());
+    void maybeResolveMutualRequests();
     renderFriendsPanel();
   });
 }
@@ -548,7 +580,8 @@ async function finalizeSignedInUser(user, existingProfile) {
     new CustomEvent("auth-state", {
       detail: {
         authenticated: true,
-        user: currentUserProfile
+        user: currentUserProfile,
+        idToken: await user.getIdToken()
       }
     })
   );
@@ -775,7 +808,11 @@ buyDiamondsButton.addEventListener("click", () => {
 });
 
 closeChatButton.addEventListener("click", () => {
+  selectedFriend = null;
+  currentMessages = [];
+  clearChatSubscription();
   closeChatPanel();
+  renderFriendsPanel();
 });
 
 incomingRequestsList.addEventListener("click", async (event) => {
@@ -958,6 +995,22 @@ onAuthStateChanged(auth, async (user) => {
       }
     })
   );
+});
+
+window.addEventListener("mobile-tab-change", ({ detail }) => {
+  if (!detail?.mobile || detail.activeTab === "friends") {
+    return;
+  }
+
+  if (!isChatPanelOpen) {
+    return;
+  }
+
+  selectedFriend = null;
+  currentMessages = [];
+  clearChatSubscription();
+  closeChatPanel();
+  renderFriendsPanel();
 });
 
 updateAuthMode();
