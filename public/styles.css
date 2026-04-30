@@ -318,9 +318,9 @@ body.is-mobile .hero-card {
   right: 10px;
   bottom: 10px;
   z-index: 5;
-  padding: 12px;
-  border-radius: 22px;
-  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  gap: 8px;
   background: rgba(12, 15, 22, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(22px);
@@ -335,46 +335,47 @@ body.is-mobile .device-badge {
 }
 
 body.is-mobile .status-badge {
-  font-size: 0.76rem;
-  padding: 8px 11px;
+  font-size: 0.72rem;
+  padding: 6px 10px;
 }
 
 body.is-mobile .controls,
 body.is-mobile .device-controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 body.is-mobile button {
   width: 100%;
-  min-height: 42px;
-  border-radius: 14px;
-  padding: 10px 12px;
-  font-size: 0.84rem;
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 8px 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
 }
 
 body.is-mobile .event-log {
   left: 10px;
   right: 10px;
-  bottom: 122px;
+  bottom: 96px;
   z-index: 4;
   min-height: 0;
-  max-height: 74px;
+  max-height: 58px;
   padding: 0;
   pointer-events: none;
 }
 
 body.is-mobile .event-item {
-  padding: 10px 12px;
-  font-size: 0.78rem;
+  padding: 8px 10px;
+  font-size: 0.72rem;
   background: rgba(12, 15, 22, 0.58);
   backdrop-filter: blur(16px);
 }
 
 body.is-mobile .video-placeholder {
   padding: 32px;
-  padding-bottom: 140px;
+  padding-bottom: 110px;
   align-items: flex-start;
   padding-top: 110px;
 }
