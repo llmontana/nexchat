@@ -61,6 +61,22 @@ function setStatus(text) {
   statusBadge.textContent = text;
 }
 
+function syncMediaToggleLabels() {
+  if (!localStream) {
+    toggleMicButton.textContent = "Sesi Kapat";
+    toggleCameraButton.textContent = "Kamerayi Kapat";
+    return;
+  }
+
+  const audioTrack = localStream.getAudioTracks()[0];
+  const videoTrack = localStream.getVideoTracks()[0];
+
+  toggleMicButton.textContent =
+    audioTrack && !audioTrack.enabled ? "Sesi Ac" : "Sesi Kapat";
+  toggleCameraButton.textContent =
+    videoTrack && !videoTrack.enabled ? "Kamerayi Ac" : "Kamerayi Kapat";
+}
+
 function resumeRemotePlayback() {
   if (!remoteVideo.srcObject) {
     return;
@@ -100,6 +116,7 @@ function setDeviceControlsEnabled(enabled) {
   reportButton.disabled = !enabled || !isConnected || reportInFlight;
   toggleMicButton.disabled = !enabled;
   toggleCameraButton.disabled = !enabled;
+  syncMediaToggleLabels();
 }
 
 function captureRemoteFrame() {
@@ -154,6 +171,7 @@ async function ensureLocalMedia() {
   localVideo.play().catch(() => {});
   mediaReady = true;
   setDeviceControlsEnabled(true);
+  syncMediaToggleLabels();
   findButton.disabled = false;
   setStatus("Kamera hazir");
   syncActionButtons();
@@ -304,7 +322,7 @@ toggleMicButton.addEventListener("click", () => {
   }
 
   audioTrack.enabled = !audioTrack.enabled;
-  toggleMicButton.textContent = audioTrack.enabled ? "Sesi Kapat" : "Sesi Ac";
+  syncMediaToggleLabels();
   logEvent(audioTrack.enabled ? "Mikrofon acildi." : "Mikrofon kapatildi.");
 });
 
@@ -319,7 +337,7 @@ toggleCameraButton.addEventListener("click", () => {
   }
 
   videoTrack.enabled = !videoTrack.enabled;
-  toggleCameraButton.textContent = videoTrack.enabled ? "Kamerayi Kapat" : "Kamerayi Ac";
+  syncMediaToggleLabels();
   logEvent(videoTrack.enabled ? "Kamera acildi." : "Kamera kapatildi.");
 });
 
