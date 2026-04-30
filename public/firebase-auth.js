@@ -57,10 +57,10 @@ function setAuthStatus(text, isError = false) {
 
 function updateAuthMode() {
   const isLogin = authMode === "login";
-  authSubmitButton.textContent = isLogin ? "Giris Yap" : "Kayit Ol";
-  authModeButton.textContent = isLogin ? "Hesap Olustur" : "Giris Ekranina Don";
+  authSubmitButton.textContent = isLogin ? "Giriş Yap" : "Kayıt Ol";
+  authModeButton.textContent = isLogin ? "Hesap Oluştur" : "Giriş Ekranına Dön";
   authPassword.autocomplete = isLogin ? "current-password" : "new-password";
-  setAuthStatus(isLogin ? "Hazir" : "Yeni hesap olusturabilirsin");
+  setAuthStatus(isLogin ? "Hazır" : "Yeni hesap oluşturabilirsin");
 }
 
 async function ensureUserProfile(user) {
@@ -103,7 +103,7 @@ function openUsernameSetup(user, suggestedName = "") {
   authOverlay.classList.add("hidden");
   usernameOverlay.classList.remove("hidden");
   usernameInput.value = suggestedName;
-  setUsernameStatus("Kullanici adini belirle");
+  setUsernameStatus("Kullanıcı adını belirle");
   setTimeout(() => usernameInput.focus(), 0);
 }
 
@@ -121,7 +121,7 @@ async function finalizeSignedInUser(user, existingProfile) {
   authOverlay.classList.add("hidden");
   sessionBadge.textContent = `${username} @ ${user.email || "aktif"}`;
   logoutButton.disabled = false;
-  setAuthStatus("Giris basarili");
+  setAuthStatus("Giriş başarılı");
   window.dispatchEvent(
     new CustomEvent("auth-state", {
       detail: {
@@ -138,7 +138,7 @@ async function finalizeSignedInUser(user, existingProfile) {
 
 async function signInWithProvider(provider, providerName) {
   setAuthUiBusy(true);
-  setAuthStatus(`${providerName} ile giris yapiliyor...`);
+  setAuthStatus(`${providerName} ile giriş yapılıyor...`);
 
   try {
     const credential = await signInWithPopup(auth, provider);
@@ -161,12 +161,12 @@ authForm.addEventListener("submit", async (event) => {
   const email = authEmail.value.trim();
   const password = authPassword.value;
   if (!email || !password) {
-    setAuthStatus("E-posta ve sifre gerekli.", true);
+    setAuthStatus("E-posta ve şifre gerekli.", true);
     return;
   }
 
   setAuthUiBusy(true);
-  setAuthStatus(authMode === "login" ? "Giris yapiliyor..." : "Hesap olusturuluyor...");
+  setAuthStatus(authMode === "login" ? "Giriş yapılıyor..." : "Hesap oluşturuluyor...");
 
   try {
     if (authMode === "login") {
@@ -190,13 +190,13 @@ usernameForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!pendingProfileUser) {
-    setUsernameStatus("Aktif kullanici bulunamadi.", true);
+    setUsernameStatus("Aktif kullanıcı bulunamadı.", true);
     return;
   }
 
   const username = normalizeUsername(usernameInput.value);
   if (username.length < 3) {
-    setUsernameStatus("Kullanici adi en az 3 karakter olmali ve sadece harf, rakam, _ icermeli.", true);
+    setUsernameStatus("Kullanıcı adı en az 3 karakter olmalı ve sadece harf, rakam, _ içermeli.", true);
     return;
   }
 
@@ -250,7 +250,7 @@ onAuthStateChanged(auth, async (user) => {
   authOverlay.classList.remove("hidden");
   usernameOverlay.classList.add("hidden");
   document.body.classList.remove("is-authenticated");
-  sessionBadge.textContent = "Giris yapilmadi";
+  sessionBadge.textContent = "Giriş yapılmadı";
   logoutButton.disabled = true;
   authPassword.value = "";
   usernameInput.value = "";

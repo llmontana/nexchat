@@ -25,9 +25,9 @@
     <section id="authOverlay" class="auth-overlay">
       <div class="auth-card">
         <div class="auth-badge">Firebase Auth</div>
-        <h2>Nexchat'e Giris Yap</h2>
+        <h2>Nexchat'e Giriş Yap</h2>
         <p class="auth-copy">
-          Sohbete baslamadan once bir hesapla giris yapman gerekiyor.
+          Sohbete başlamadan önce bir hesapla giriş yapman gerekiyor.
         </p>
 
         <div class="social-auth">
@@ -45,34 +45,34 @@
           <input
             id="authPassword"
             type="password"
-            placeholder="Sifre"
+            placeholder="Şifre"
             autocomplete="current-password"
             minlength="6"
             required
           />
-          <button id="authSubmitButton" class="primary-button" type="submit">Giris Yap</button>
+          <button id="authSubmitButton" class="primary-button" type="submit">Giriş Yap</button>
         </form>
 
         <div class="auth-actions">
-          <button id="authModeButton" class="ghost-button" type="button">Hesap Olustur</button>
+          <button id="authModeButton" class="ghost-button" type="button">Hesap Oluştur</button>
         </div>
 
-        <div id="authStatus" class="auth-status">Hazir</div>
+        <div id="authStatus" class="auth-status">Hazır</div>
       </div>
     </section>
     <section id="usernameOverlay" class="auth-overlay hidden">
       <div class="auth-card">
         <div class="auth-badge">Profil Kurulumu</div>
-        <h2>Kullanici Adini Sec</h2>
+        <h2>Kullanıcı Adını Seç</h2>
         <p class="auth-copy">
-          Ilk girisinde bir kullanici adi belirle. Bu ad profilinde saklanacak.
+          İlk girişinde bir kullanıcı adı belirle. Bu ad profilinde saklanacak.
         </p>
 
         <form id="usernameForm" class="auth-form">
           <input
             id="usernameInput"
             type="text"
-            placeholder="Kullanici adi"
+            placeholder="Kullanıcı adı"
             minlength="3"
             maxlength="20"
             autocomplete="nickname"
@@ -83,34 +83,34 @@
           </button>
         </form>
 
-        <div id="usernameStatus" class="auth-status">Hazir</div>
+        <div id="usernameStatus" class="auth-status">Hazır</div>
       </div>
     </section>
     <main class="app-shell">
       <section class="hero-card">
         <div class="eyebrow">Nex Anonim Görüntülü Sohbet</div>
         <div id="deviceBadge" class="device-badge">Desktop Mode</div>
-        <h1>Rastgele biriyle kamerali baglan.</h1>
+        <h1>Rastgele biriyle kameralı bağlan.</h1>
         <p class="hero-copy">
-          Kamera ve mikrofon izni ver, sisteme gir ve otomatik olarak baska bir
-          kullanici ile esles.
+          Kamera ve mikrofon izni ver, sisteme gir ve otomatik olarak başka bir
+          kullanıcı ile eşleş.
         </p>
 
         <div class="controls">
-          <button id="startButton" class="primary-button">Kamerayi Ac</button>
-          <button id="findButton" class="ghost-button" disabled>Sohbete Basla</button>
+          <button id="startButton" class="primary-button">Kamerayı Aç</button>
+          <button id="findButton" class="ghost-button" disabled>Sohbete Başla</button>
           <button id="nextButton" class="ghost-button" disabled>Next</button>
         </div>
 
         <div class="device-controls">
           <button id="reportButton" class="ghost-button" disabled>Rapor Et</button>
           <button id="toggleMicButton" class="ghost-button" disabled>Sesi Kapat</button>
-          <button id="toggleCameraButton" class="ghost-button" disabled>Kamerayi Kapat</button>
+          <button id="toggleCameraButton" class="ghost-button" disabled>Kamerayı Kapat</button>
         </div>
 
-        <div id="statusBadge" class="status-badge">Hazir</div>
-        <div id="sessionBadge" class="device-badge">Giris yapilmadi</div>
-        <button id="logoutButton" class="ghost-button" type="button" disabled>Cikis Yap</button>
+        <div id="statusBadge" class="status-badge">Hazır</div>
+        <div id="sessionBadge" class="device-badge">Giriş yapılmadı</div>
+        <button id="logoutButton" class="ghost-button" type="button" disabled>Çıkış Yap</button>
       </section>
 
       <section class="video-card">
@@ -121,10 +121,10 @@
           </article>
 
           <article class="video-panel remote-panel">
-            <div id="remoteVideoLabel" class="video-label">Yabanci</div>
+            <div id="remoteVideoLabel" class="video-label">Yabancı</div>
             <video id="remoteVideo" autoplay playsinline webkit-playsinline="true"></video>
             <div id="remotePlaceholder" class="video-placeholder">
-              Partner baglaninca goruntu burada acilacak.
+              Partner bağlanınca görüntü burada açılacak.
             </div>
           </article>
         </div>

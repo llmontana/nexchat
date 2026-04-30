@@ -118,7 +118,7 @@ app.use((request, response, next) => {
     return;
   }
 
-  response.status(403).send("Bu erisim engellendi.");
+  response.status(403).send("Bu erişim engellendi.");
 });
 
 function pairSockets(firstId, secondId) {
@@ -204,7 +204,7 @@ io.use((socket, next) => {
   const banRecord = getBanRecord(ip);
 
   if (banRecord) {
-    next(new Error("Bu cihaz gecici olarak engellendi."));
+    next(new Error("Bu cihaz geçici olarak engellendi."));
     return;
   }
 
@@ -212,7 +212,7 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  socket.emit("status", "Sunucuya baglandin.");
+  socket.emit("status", "Sunucuya bağlandın.");
 
   socket.on("user-profile", (profile) => {
     if (!profile || typeof profile !== "object") {
@@ -236,7 +236,7 @@ io.on("connection", (socket) => {
 
   socket.on("find-partner", () => {
     if (getPartnerId(socket.id)) {
-      socket.emit("status", "Zaten bir eslesmen var.");
+      socket.emit("status", "Zaten bir eşleşmen var.");
       return;
     }
 
@@ -263,7 +263,7 @@ io.on("connection", (socket) => {
     if (!partnerId || typeof imageData !== "string" || imageData.length === 0) {
       socket.emit("report-result", {
         ok: false,
-        message: "Rapor icin gecerli bir goruntu bulunamadi."
+        message: "Rapor için geçerli bir görüntü bulunamadı."
       });
       return;
     }
@@ -272,7 +272,7 @@ io.on("connection", (socket) => {
     if (!targetSocket) {
       socket.emit("report-result", {
         ok: false,
-        message: "Raporlanan kullanici bulunamadi."
+        message: "Raporlanan kullanıcı bulunamadı."
       });
       return;
     }
@@ -285,7 +285,7 @@ io.on("connection", (socket) => {
         socket.emit("report-result", {
           ok: true,
           actionTaken: false,
-          message: `Inceleme tamamlandi. Sexual severity: ${result.severity}.`
+          message: `İnceleme tamamlandı. Sexual severity: ${result.severity}.`
         });
         return;
       }
@@ -294,7 +294,7 @@ io.on("connection", (socket) => {
       banIp(targetIp, `Sexual severity ${result.severity}`);
 
       targetSocket.emit("moderation-ban", {
-        message: "Uygunsuz icerik nedeniyle erisimin gecici olarak engellendi."
+        message: "Uygunsuz içerik nedeniyle erişimin geçici olarak engellendi."
       });
       leaveConversation(targetSocket, false);
       targetSocket.disconnect(true);
@@ -302,7 +302,7 @@ io.on("connection", (socket) => {
       socket.emit("report-result", {
         ok: true,
         actionTaken: true,
-        message: `Rapor dogrulandi. Kullanici engellendi. Sexual severity: ${result.severity}.`
+        message: `Rapor doğrulandı. Kullanıcı engellendi. Sexual severity: ${result.severity}.`
       });
     } catch (error) {
       socket.emit("report-result", {

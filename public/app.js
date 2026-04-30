@@ -43,7 +43,7 @@ function setLocalLabel(username) {
 }
 
 function setRemoteLabel(username) {
-  remoteVideoLabel.textContent = username || "Yabanci";
+  remoteVideoLabel.textContent = username || "Yabancı";
 }
 
 function detectMobileLayout() {
@@ -77,7 +77,7 @@ function setStatus(text) {
 function syncMediaToggleLabels() {
   if (!localStream) {
     toggleMicButton.textContent = "Sesi Kapat";
-    toggleCameraButton.textContent = "Kamerayi Kapat";
+    toggleCameraButton.textContent = "Kamerayı Kapat";
     return;
   }
 
@@ -85,9 +85,9 @@ function syncMediaToggleLabels() {
   const videoTrack = localStream.getVideoTracks()[0];
 
   toggleMicButton.textContent =
-    audioTrack && !audioTrack.enabled ? "Sesi Ac" : "Sesi Kapat";
+    audioTrack && !audioTrack.enabled ? "Sesi Aç" : "Sesi Kapat";
   toggleCameraButton.textContent =
-    videoTrack && !videoTrack.enabled ? "Kamerayi Ac" : "Kamerayi Kapat";
+    videoTrack && !videoTrack.enabled ? "Kamerayı Aç" : "Kamerayı Kapat";
 }
 
 function resumeRemotePlayback() {
@@ -106,7 +106,7 @@ function syncMobileDrawerState() {
   mobileDrawerToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
   mobileDrawerToggle.setAttribute(
     "aria-label",
-    collapsed ? "Kontrolleri goster" : "Kontrolleri gizle"
+    collapsed ? "Kontrolleri göster" : "Kontrolleri gizle"
   );
 }
 
@@ -187,7 +187,7 @@ async function ensureLocalMedia() {
   setDeviceControlsEnabled(true);
   syncMediaToggleLabels();
   findButton.disabled = false;
-  setStatus("Kamera hazir");
+  setStatus("Kamera hazır");
   syncActionButtons();
   return stream;
 }
@@ -261,10 +261,10 @@ function createPeerConnection() {
     remoteVideo.muted = false;
     remoteVideo.volume = 1;
     remoteVideo.play().catch(() => {
-      logEvent("Karsi tarafin sesi icin ekrana dokunman gerekebilir.");
+      logEvent("Karşı tarafın sesi için ekrana dokunman gerekebilir.");
     });
     setConnectedState(true);
-    setStatus("Goruntulu baglanti kuruldu");
+    setStatus("Görüntülü bağlantı kuruldu");
     isMatching = false;
     syncActionButtons();
   };
@@ -288,8 +288,8 @@ async function requestPartner() {
   cleanupPeerConnection();
   politePeer = false;
   isMatching = true;
-  setStatus("Partner araniyor...");
-  logEvent("Yeni bir goruntulu partner araniyor.");
+  setStatus("Partner aranıyor...");
+  logEvent("Yeni bir görüntülü partner aranıyor.");
   syncActionButtons();
   socket.emit("find-partner");
 }
@@ -306,25 +306,25 @@ async function flushPendingIceCandidates() {
     try {
       await peerConnection.addIceCandidate(candidate);
     } catch (error) {
-      logEvent(`Bekleyen ICE adayi eklenemedi: ${error.message}`);
+      logEvent(`Bekleyen ICE adayı eklenemedi: ${error.message}`);
     }
   }
 }
 
 startButton.addEventListener("click", async () => {
   if (!isAuthenticated) {
-    setStatus("Giris yapman gerekiyor");
+    setStatus("Giriş yapman gerekiyor");
     return;
   }
 
   try {
     await ensureLocalMedia();
-    logEvent("Kamera ve mikrofon hazir. Simdi sohbeti baslatabilirsin.");
+    logEvent("Kamera ve mikrofon hazır. Şimdi sohbeti başlatabilirsin.");
   } catch (error) {
     mediaReady = false;
     syncActionButtons();
     setStatus("Kamera izni gerekiyor");
-    logEvent(`Kamera veya mikrofon acilamadi: ${error.message}`);
+    logEvent(`Kamera veya mikrofon açılamadı: ${error.message}`);
   }
 });
 
@@ -338,7 +338,7 @@ findButton.addEventListener("click", async () => {
   } catch (error) {
     isMatching = false;
     syncActionButtons();
-    logEvent(`Eslesme baslatilamadi: ${error.message}`);
+    logEvent(`Eşleşme başlatılamadı: ${error.message}`);
   }
 });
 
@@ -349,8 +349,8 @@ nextButton.addEventListener("click", async () => {
 
   cleanupPeerConnection();
   isMatching = true;
-  setStatus("Yeni partner araniyor...");
-  logEvent("Eslesme sonlandirildi. Yeni biri araniyor.");
+  setStatus("Yeni partner aranıyor...");
+  logEvent("Eşleşme sonlandırıldı. Yeni biri aranıyor.");
   syncActionButtons();
   socket.emit("next-partner");
 });
@@ -367,7 +367,7 @@ toggleMicButton.addEventListener("click", () => {
 
   audioTrack.enabled = !audioTrack.enabled;
   syncMediaToggleLabels();
-  logEvent(audioTrack.enabled ? "Mikrofon acildi." : "Mikrofon kapatildi.");
+  logEvent(audioTrack.enabled ? "Mikrofon açıldı." : "Mikrofon kapatıldı.");
 });
 
 toggleCameraButton.addEventListener("click", () => {
@@ -382,7 +382,7 @@ toggleCameraButton.addEventListener("click", () => {
 
   videoTrack.enabled = !videoTrack.enabled;
   syncMediaToggleLabels();
-  logEvent(videoTrack.enabled ? "Kamera acildi." : "Kamera kapatildi.");
+  logEvent(videoTrack.enabled ? "Kamera açıldı." : "Kamera kapatıldı.");
 });
 
 mobileDrawerToggle.addEventListener("click", () => {
@@ -401,7 +401,7 @@ reportButton.addEventListener("click", () => {
 
   const imageData = captureRemoteFrame();
   if (!imageData) {
-    logEvent("Rapor icin goruntu alinamadi.");
+    logEvent("Rapor için görüntü alınamadı.");
     return;
   }
 
@@ -418,14 +418,14 @@ socket.on("status", (text) => {
 });
 
 socket.on("connect_error", (error) => {
-  setStatus("Baglanti engellendi");
-  logEvent(error.message || "Sunucu baglantisi kurulamadı.");
+  setStatus("Bağlantı engellendi");
+  logEvent(error.message || "Sunucu bağlantısı kurulamadı.");
 });
 
 socket.on("waiting", () => {
   isMatching = true;
-  setStatus("Bekleme sirasindasin");
-  logEvent("Eslesme kuyrugundasin.");
+  setStatus("Bekleme sırasındasın");
+  logEvent("Eşleşme kuyruğundasın.");
   syncActionButtons();
 });
 
@@ -435,8 +435,8 @@ socket.on("partner-found", async ({ initiator, partnerProfile }) => {
     politePeer = !initiator;
     const connection = createPeerConnection();
     setRemoteLabel(partnerProfile?.username || "");
-    setStatus("Partner bulundu, baglanti kuruluyor...");
-    logEvent("Partner bulundu. WebRTC baglantisi kuruluyor.");
+    setStatus("Partner bulundu, bağlantı kuruluyor...");
+    logEvent("Partner bulundu. WebRTC bağlantısı kuruluyor.");
 
     if (initiator) {
       makingOffer = true;
@@ -446,29 +446,29 @@ socket.on("partner-found", async ({ initiator, partnerProfile }) => {
     }
   } catch (error) {
     makingOffer = false;
-    logEvent(`Partner baglantisi baslatilamadi: ${error.message}`);
+    logEvent(`Partner bağlantısı başlatılamadı: ${error.message}`);
   }
 });
 
 socket.on("partner-left", () => {
   cleanupPeerConnection();
   isMatching = false;
-  setStatus("Partner ayrildi");
-  logEvent("Partner ayrildi. Tekrar baslatip yeni eslesme arayabilirsin.");
+  setStatus("Partner ayrıldı");
+  logEvent("Partner ayrıldı. Tekrar başlatıp yeni eşleşme arayabilirsin.");
   syncActionButtons();
 });
 
 socket.on("report-result", ({ ok, actionTaken, message }) => {
   reportInFlight = false;
   syncActionButtons();
-  setStatus(ok ? "Rapor tamamlandi" : "Rapor hatasi");
-  logEvent(message || (actionTaken ? "Kullanici engellendi." : "Rapor tamamlandi."));
+  setStatus(ok ? "Rapor tamamlandı" : "Rapor hatası");
+  logEvent(message || (actionTaken ? "Kullanıcı engellendi." : "Rapor tamamlandı."));
 });
 
 socket.on("moderation-ban", ({ message }) => {
   cleanupPeerConnection();
-  setStatus("Erisim engellendi");
-  logEvent(message || "Uygunsuz icerik nedeniyle erisim engellendi.");
+  setStatus("Erişim engellendi");
+  logEvent(message || "Uygunsuz içerik nedeniyle erişim engellendi.");
 });
 
 socket.on("partner-profile", (profile) => {
@@ -484,8 +484,8 @@ window.addEventListener("auth-state", ({ detail }) => {
     currentUserProfile = null;
     setLocalLabel("");
     setRemoteLabel("");
-    setStatus("Giris yapman gerekiyor");
-    logEvent("Sohbete devam etmek icin giris yap.");
+    setStatus("Giriş yapman gerekiyor");
+    logEvent("Sohbete devam etmek için giriş yap.");
   } else {
     currentUserProfile = detail.user;
     setLocalLabel(detail.user.username || "");
@@ -493,7 +493,7 @@ window.addEventListener("auth-state", ({ detail }) => {
       username: detail.user.username || "",
       email: detail.user.email || ""
     });
-    setStatus("Giris yapildi");
+    setStatus("Giriş yapıldı");
     logEvent(`${detail.user.username || detail.user.email} ile oturum acildi.`);
   }
 
@@ -522,7 +522,7 @@ socket.on("webrtc-offer", async (offer) => {
     await peerConnection.setLocalDescription();
     socket.emit("webrtc-answer", peerConnection.localDescription);
   } catch (error) {
-    logEvent(`Teklif islenemedi: ${error.message}`);
+      logEvent(`Teklif işlenemedi: ${error.message}`);
   }
 });
 
@@ -536,7 +536,7 @@ socket.on("webrtc-answer", async (answer) => {
     hasRemoteDescription = true;
     await flushPendingIceCandidates();
   } catch (error) {
-    logEvent(`Yanıt islenemedi: ${error.message}`);
+    logEvent(`Yanıt işlenemedi: ${error.message}`);
   }
 });
 
@@ -554,7 +554,7 @@ socket.on("webrtc-ice-candidate", async (candidate) => {
     await peerConnection.addIceCandidate(candidate);
   } catch (error) {
     if (!ignoreOffer) {
-      logEvent(`ICE adayi eklenemedi: ${error.message}`);
+      logEvent(`ICE adayı eklenemedi: ${error.message}`);
     }
   }
 });
