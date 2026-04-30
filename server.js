@@ -26,6 +26,7 @@ const socketProfiles = new Map();
 const authenticatedSockets = new Map();
 const recentUserSessions = new Map();
 const matchPreferences = new Map();
+const lastPartnerBySocket = new Map();
 const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"]);
 const bannedIps = new Map();
 
@@ -222,6 +223,8 @@ function clearPair(socketId) {
 
   peers.delete(socketId);
   peers.delete(partnerId);
+  lastPartnerBySocket.set(socketId, partnerId);
+  lastPartnerBySocket.set(partnerId, socketId);
   return partnerId;
 }
 
@@ -316,6 +319,13 @@ function normalizeGenderFilter(value) {
 }
 
 function canPairSockets(firstSocketId, secondSocketId) {
+  if (
+    lastPartnerBySocket.get(firstSocketId) === secondSocketId ||
+    lastPartnerBySocket.get(secondSocketId) === firstSocketId
+  ) {
+    return false;
+  }
+
   const firstProfile = socketProfiles.get(firstSocketId);
   const secondProfile = socketProfiles.get(secondSocketId);
   if (!firstProfile || !secondProfile) {
@@ -632,6 +642,7 @@ io.on("connection", (socket) => {
     socketProfiles.delete(socket.id);
     authenticatedSockets.delete(socket.id);
     matchPreferences.delete(socket.id);
+    lastPartnerBySocket.delete(socket.id);
   });
 });
 
