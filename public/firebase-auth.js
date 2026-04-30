@@ -412,19 +412,23 @@ async function ensureUserProfile(user) {
   const snapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
   const email = user.email || "";
   const adminByEmail = isAdminEmail(email);
+  const profilePayload = {
+    uid: user.uid,
+    email,
+    provider: user.providerData?.[0]?.providerId || "password",
+    lastLoginAt: serverTimestamp(),
+    isAdmin: snapshot.exists() ? Boolean(snapshot.data().isAdmin || adminByEmail) : adminByEmail
+  };
+
+  if (!snapshot.exists()) {
+    profilePayload.diamonds = 0;
+    profilePayload.createdAt = serverTimestamp();
+    profilePayload.isBanned = false;
+  }
 
   await setDoc(
     userRef,
-    {
-      uid: user.uid,
-      email,
-      provider: user.providerData?.[0]?.providerId || "password",
-      diamonds: snapshot.exists() ? Number(snapshot.data().diamonds || 0) : 0,
-      createdAt: snapshot.exists() ? snapshot.data().createdAt || serverTimestamp() : serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-      isBanned: false,
-      isAdmin: snapshot.exists() ? Boolean(snapshot.data().isAdmin || adminByEmail) : adminByEmail
-    },
+    profilePayload,
     { merge: true }
   );
 
