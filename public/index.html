@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LoopTalk Video</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-card">
+        <div class="eyebrow">Nex Anonim Görüntülü Sohbet</div>
+        <div id="deviceBadge" class="device-badge">Desktop Mode</div>
+        <h1>Rastgele biriyle kamerali baglan.</h1>
+        <p class="hero-copy">
+          Kamera ve mikrofon izni ver, sisteme gir ve otomatik olarak baska bir
+          kullanici ile esles.
+        </p>
+
+        <div class="controls">
+          <button id="startButton" class="primary-button">Kamerayi Ac</button>
+          <button id="nextButton" class="ghost-button" disabled>Next</button>
+        </div>
+
+        <div class="device-controls">
+          <button id="toggleMicButton" class="ghost-button" disabled>Sesi Kapat</button>
+          <button id="toggleCameraButton" class="ghost-button" disabled>Kamerayi Kapat</button>
+        </div>
+
+        <div id="statusBadge" class="status-badge">Hazir</div>
+
+        <div class="tips-card">
+          <strong>Not</strong>
+          <p>
+            Bu surum birebir goruntulu gorusme MVP'sidir. Uretime cikmadan once
+            HTTPS, TURN server ve moderasyon eklemen gerekir.
+          </p>
+        </div>
+      </section>
+
+      <section class="video-card">
+        <div class="video-grid">
+          <article class="video-panel">
+            <div class="video-label">Sen</div>
+            <video id="localVideo" autoplay muted playsinline></video>
+          </article>
+
+          <article class="video-panel remote-panel">
+            <div class="video-label">Yabanci</div>
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div id="remotePlaceholder" class="video-placeholder">
+              Partner baglaninca goruntu burada acilacak.
+            </div>
+          </article>
+        </div>
+
+        <div id="eventLog" class="event-log" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

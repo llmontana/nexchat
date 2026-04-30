@@ -1,0 +1,317 @@
+const socket = io();
+
+const startButton = document.getElementById("startButton");
+const nextButton = document.getElementById("nextButton");
+const toggleMicButton = document.getElementById("toggleMicButton");
+const toggleCameraButton = document.getElementById("toggleCameraButton");
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+const remotePlaceholder = document.getElementById("remotePlaceholder");
+const statusBadge = document.getElementById("statusBadge");
+const eventLog = document.getElementById("eventLog");
+const deviceBadge = document.getElementById("deviceBadge");
+
+const rtcConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" }
+  ]
+};
+
+let localStream = null;
+let peerConnection = null;
+let makingOffer = false;
+let ignoreOffer = false;
+let politePeer = false;
+let hasRemoteDescription = false;
+let pendingIceCandidates = [];
+
+function detectMobileLayout() {
+  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
+    navigator.userAgent
+  );
+  const narrowScreen = window.matchMedia("(max-width: 900px)").matches;
+  const touchDevice = navigator.maxTouchPoints > 0;
+
+  return mobileUserAgent || (narrowScreen && touchDevice);
+}
+
+function applyDeviceMode() {
+  const isMobile = detectMobileLayout();
+  document.body.classList.toggle("is-mobile", isMobile);
+  document.body.classList.toggle("is-desktop", !isMobile);
+  deviceBadge.textContent = isMobile ? "Mobile Mode" : "Desktop Mode";
+}
+
+function setStatus(text) {
+  statusBadge.textContent = text;
+}
+
+function logEvent(text) {
+  const item = document.createElement("article");
+  item.className = "event-item";
+  item.textContent = text;
+  eventLog.appendChild(item);
+  eventLog.scrollTop = eventLog.scrollHeight;
+}
+
+function setDeviceControlsEnabled(enabled) {
+  toggleMicButton.disabled = !enabled;
+  toggleCameraButton.disabled = !enabled;
+}
+
+function setConnectedState(connected) {
+  nextButton.disabled = !localStream;
+  remotePlaceholder.classList.toggle("hidden", connected);
+}
+
+async function ensureLocalMedia() {
+  if (localStream) {
+    return localStream;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: {
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      facingMode: "user"
+    }
+  });
+
+  localStream = stream;
+  localVideo.srcObject = stream;
+  setDeviceControlsEnabled(true);
+  nextButton.disabled = false;
+  return stream;
+}
+
+function resetRemoteVideo() {
+  remoteVideo.srcObject = null;
+  setConnectedState(false);
+}
+
+function cleanupPeerConnection() {
+  if (peerConnection) {
+    peerConnection.onicecandidate = null;
+    peerConnection.ontrack = null;
+    peerConnection.onnegotiationneeded = null;
+    peerConnection.onconnectionstatechange = null;
+    peerConnection.close();
+    peerConnection = null;
+  }
+
+  makingOffer = false;
+  ignoreOffer = false;
+  hasRemoteDescription = false;
+  pendingIceCandidates = [];
+  resetRemoteVideo();
+}
+
+function createPeerConnection() {
+  cleanupPeerConnection();
+
+  const connection = new RTCPeerConnection(rtcConfig);
+  localStream.getTracks().forEach((track) => {
+    connection.addTrack(track, localStream);
+  });
+
+  connection.onicecandidate = ({ candidate }) => {
+    if (candidate) {
+      socket.emit("webrtc-ice-candidate", candidate);
+    }
+  };
+
+  connection.ontrack = (event) => {
+    remoteVideo.srcObject = event.streams[0];
+    setConnectedState(true);
+    setStatus("Goruntulu baglanti kuruldu");
+  };
+
+  connection.onconnectionstatechange = () => {
+    const state = connection.connectionState;
+
+    if (state === "failed" || state === "closed" || state === "disconnected") {
+      resetRemoteVideo();
+    }
+  };
+
+  peerConnection = connection;
+  return connection;
+}
+
+async function requestPartner() {
+  await ensureLocalMedia();
+  cleanupPeerConnection();
+  politePeer = false;
+  setStatus("Partner araniyor...");
+  logEvent("Yeni bir goruntulu partner araniyor.");
+  socket.emit("find-partner");
+}
+
+async function flushPendingIceCandidates() {
+  if (!peerConnection || !hasRemoteDescription || pendingIceCandidates.length === 0) {
+    return;
+  }
+
+  const queuedCandidates = [...pendingIceCandidates];
+  pendingIceCandidates = [];
+
+  for (const candidate of queuedCandidates) {
+    try {
+      await peerConnection.addIceCandidate(candidate);
+    } catch (error) {
+      logEvent(`Bekleyen ICE adayi eklenemedi: ${error.message}`);
+    }
+  }
+}
+
+startButton.addEventListener("click", async () => {
+  startButton.disabled = true;
+
+  try {
+    await requestPartner();
+  } catch (error) {
+    startButton.disabled = false;
+    setStatus("Kamera izni gerekiyor");
+    logEvent(`Kamera veya mikrofon acilamadi: ${error.message}`);
+  }
+});
+
+nextButton.addEventListener("click", async () => {
+  if (!localStream) {
+    return;
+  }
+
+  cleanupPeerConnection();
+  setStatus("Yeni partner araniyor...");
+  logEvent("Eslesme sonlandirildi. Yeni biri araniyor.");
+  socket.emit("next-partner");
+});
+
+toggleMicButton.addEventListener("click", () => {
+  if (!localStream) {
+    return;
+  }
+
+  const audioTrack = localStream.getAudioTracks()[0];
+  if (!audioTrack) {
+    return;
+  }
+
+  audioTrack.enabled = !audioTrack.enabled;
+  toggleMicButton.textContent = audioTrack.enabled ? "Sesi Kapat" : "Sesi Ac";
+  logEvent(audioTrack.enabled ? "Mikrofon acildi." : "Mikrofon kapatildi.");
+});
+
+toggleCameraButton.addEventListener("click", () => {
+  if (!localStream) {
+    return;
+  }
+
+  const videoTrack = localStream.getVideoTracks()[0];
+  if (!videoTrack) {
+    return;
+  }
+
+  videoTrack.enabled = !videoTrack.enabled;
+  toggleCameraButton.textContent = videoTrack.enabled ? "Kamerayi Kapat" : "Kamerayi Ac";
+  logEvent(videoTrack.enabled ? "Kamera acildi." : "Kamera kapatildi.");
+});
+
+socket.on("status", (text) => {
+  setStatus(text);
+  logEvent(text);
+});
+
+socket.on("waiting", () => {
+  setStatus("Bekleme sirasindasin");
+  logEvent("Eslesme kuyrugundasin.");
+});
+
+socket.on("partner-found", async ({ initiator }) => {
+  try {
+    await ensureLocalMedia();
+    politePeer = !initiator;
+    const connection = createPeerConnection();
+    setStatus("Partner bulundu, baglanti kuruluyor...");
+    logEvent("Partner bulundu. WebRTC baglantisi kuruluyor.");
+
+    if (initiator) {
+      makingOffer = true;
+      await connection.setLocalDescription();
+      socket.emit("webrtc-offer", connection.localDescription);
+      makingOffer = false;
+    }
+  } catch (error) {
+    makingOffer = false;
+    logEvent(`Partner baglantisi baslatilamadi: ${error.message}`);
+  }
+});
+
+socket.on("partner-left", () => {
+  cleanupPeerConnection();
+  setStatus("Partner ayrildi");
+  logEvent("Partner ayrildi. Siradaki eslesme bekleniyor.");
+});
+
+socket.on("webrtc-offer", async (offer) => {
+  try {
+    await ensureLocalMedia();
+
+    if (!peerConnection) {
+      createPeerConnection();
+    }
+
+    const offerCollision =
+      makingOffer || peerConnection.signalingState !== "stable";
+
+    ignoreOffer = !politePeer && offerCollision;
+    if (ignoreOffer) {
+      return;
+    }
+
+    await peerConnection.setRemoteDescription(offer);
+    hasRemoteDescription = true;
+    await flushPendingIceCandidates();
+    await peerConnection.setLocalDescription();
+    socket.emit("webrtc-answer", peerConnection.localDescription);
+  } catch (error) {
+    logEvent(`Teklif islenemedi: ${error.message}`);
+  }
+});
+
+socket.on("webrtc-answer", async (answer) => {
+  if (!peerConnection) {
+    return;
+  }
+
+  try {
+    await peerConnection.setRemoteDescription(answer);
+    hasRemoteDescription = true;
+    await flushPendingIceCandidates();
+  } catch (error) {
+    logEvent(`Yanıt islenemedi: ${error.message}`);
+  }
+});
+
+socket.on("webrtc-ice-candidate", async (candidate) => {
+  if (!peerConnection) {
+    return;
+  }
+
+  if (!hasRemoteDescription) {
+    pendingIceCandidates.push(candidate);
+    return;
+  }
+
+  try {
+    await peerConnection.addIceCandidate(candidate);
+  } catch (error) {
+    if (!ignoreOffer) {
+      logEvent(`ICE adayi eklenemedi: ${error.message}`);
+    }
+  }
+});
+
+applyDeviceMode();
+window.addEventListener("resize", applyDeviceMode);

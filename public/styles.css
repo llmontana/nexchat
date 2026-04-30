@@ -1,0 +1,436 @@
+:root {
+  color-scheme: dark;
+  --bg: #090b10;
+  --panel: rgba(17, 20, 27, 0.88);
+  --panel-strong: #141923;
+  --text: #f5f7fb;
+  --muted: #a1acba;
+  --line: rgba(255, 255, 255, 0.1);
+  --shadow: 0 30px 70px rgba(0, 0, 0, 0.38);
+  --rainbow: linear-gradient(120deg, #ff5f6d, #ffc371, #47cf73, #4facfe, #b465da, #ff5f6d);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 95, 109, 0.18), transparent 24%),
+    radial-gradient(circle at right, rgba(79, 172, 254, 0.16), transparent 22%),
+    linear-gradient(155deg, #05070b 0%, #090b10 48%, #0d1118 100%);
+  background-size: 100% 100%;
+}
+
+.app-shell {
+  width: min(1240px, calc(100% - 32px));
+  margin: 28px auto;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+}
+
+.hero-card,
+.video-card {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.hero-card {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.eyebrow {
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  animation: rainbow-shift 7s linear infinite;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 3.7rem);
+  line-height: 0.95;
+}
+
+.hero-copy,
+.tips-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.device-badge {
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.controls,
+.device-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+button {
+  font: inherit;
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
+}
+
+.primary-button {
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  animation: rainbow-shift 6s linear infinite;
+  box-shadow: 0 14px 28px rgba(180, 101, 218, 0.22);
+}
+
+.ghost-button {
+  background-image: linear-gradient(
+    120deg,
+    rgba(255, 95, 109, 0.18),
+    rgba(255, 195, 113, 0.16),
+    rgba(71, 207, 115, 0.16),
+    rgba(79, 172, 254, 0.16),
+    rgba(180, 101, 218, 0.18)
+  );
+  background-size: 280% 280%;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: rainbow-shift 8s linear infinite;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(79, 172, 254, 0.2);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.status-badge {
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background-image: linear-gradient(
+    120deg,
+    rgba(255, 95, 109, 0.18),
+    rgba(255, 195, 113, 0.16),
+    rgba(79, 172, 254, 0.16),
+    rgba(180, 101, 218, 0.18)
+  );
+  background-size: 280% 280%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 500;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+.tips-card {
+  margin-top: auto;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tips-card strong {
+  display: block;
+  margin-bottom: 8px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: rainbow-shift 7s linear infinite;
+}
+
+.video-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.video-panel {
+  position: relative;
+  min-height: 520px;
+  background: linear-gradient(180deg, #1d2734 0%, #101822 100%);
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.video-label {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(10, 15, 22, 0.55);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #0e1720;
+}
+
+.remote-panel {
+  position: relative;
+}
+
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  background:
+    radial-gradient(circle at center, rgba(217, 93, 57, 0.18), transparent 32%),
+    linear-gradient(180deg, rgba(13, 20, 29, 0.2), rgba(13, 20, 29, 0.65));
+}
+
+.video-placeholder.hidden {
+  display: none;
+}
+
+.event-log {
+  min-height: 140px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px;
+}
+
+.event-item {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  line-height: 1.45;
+  animation: fade-up 180ms ease;
+}
+
+body.is-mobile .app-shell {
+  width: min(100%, 100%);
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0;
+}
+
+body.is-mobile .video-card {
+  min-height: 100vh;
+  border-radius: 0;
+  padding: 0;
+  background: #05070b;
+  border: 0;
+  box-shadow: none;
+}
+
+body.is-mobile .video-grid {
+  display: block;
+  min-height: 100vh;
+}
+
+body.is-mobile .remote-panel {
+  min-height: 100vh;
+  border-radius: 0;
+  border: 0;
+}
+
+body.is-mobile .video-panel:first-child {
+  position: absolute;
+  right: 14px;
+  top: 18px;
+  z-index: 4;
+  width: 34vw;
+  min-width: 118px;
+  max-width: 160px;
+  min-height: 190px;
+  height: 24vh;
+  border-radius: 24px;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+}
+
+body.is-mobile .video-panel:first-child video {
+  transform: scaleX(-1);
+}
+
+body.is-mobile .hero-card {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  padding: 18px;
+  border-radius: 28px;
+  gap: 14px;
+  background: rgba(12, 15, 22, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(22px);
+}
+
+body.is-mobile .hero-card h1,
+body.is-mobile .hero-copy,
+body.is-mobile .tips-card {
+  display: none;
+}
+
+body.is-mobile .eyebrow {
+  font-size: 0.72rem;
+  padding: 7px 10px;
+}
+
+body.is-mobile .device-badge,
+body.is-mobile .status-badge {
+  font-size: 0.8rem;
+}
+
+body.is-mobile .controls,
+body.is-mobile .device-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.is-mobile button {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 18px;
+}
+
+body.is-mobile .event-log {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 250px;
+  z-index: 4;
+  min-height: 0;
+  max-height: 110px;
+  padding: 0;
+  mask-image: linear-gradient(180deg, transparent 0%, black 22%, black 100%);
+}
+
+body.is-mobile .event-item {
+  background: rgba(12, 15, 22, 0.7);
+  backdrop-filter: blur(16px);
+}
+
+body.is-mobile .video-placeholder {
+  padding: 32px;
+  padding-bottom: 220px;
+  align-items: flex-start;
+  padding-top: 110px;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rainbow-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .video-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .video-panel {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    width: min(100% - 18px, 100%);
+    margin: 10px auto 18px;
+  }
+
+  .hero-card,
+  .video-card {
+    border-radius: 24px;
+  }
+
+  .controls,
+  .device-controls {
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+}
