@@ -9,12 +9,14 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   getFirestore,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -58,6 +60,11 @@ const incomingRequestsList = document.getElementById("incomingRequestsList");
 const outgoingRequestsList = document.getElementById("outgoingRequestsList");
 const incomingRequestsCount = document.getElementById("incomingRequestsCount");
 const outgoingRequestsCount = document.getElementById("outgoingRequestsCount");
+const chatTitle = document.getElementById("chatTitle");
+const chatMessages = document.getElementById("chatMessages");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const chatSendButton = document.getElementById("chatSendButton");
 
 let authMode = "login";
 const googleProvider = new GoogleAuthProvider();
@@ -66,10 +73,13 @@ let currentUserProfile = null;
 let currentFriends = [];
 let currentIncomingRequests = [];
 let currentOutgoingRequests = [];
+let currentMessages = [];
 let searchResults = [];
+let selectedFriend = null;
 let friendsUnsubscribe = null;
 let incomingUnsubscribe = null;
 let outgoingUnsubscribe = null;
+let chatUnsubscribe = null;
 let searchTimeoutId = null;
 
 function setAuthStatus(text, isError = false) {
@@ -103,22 +113,34 @@ function escapeHtml(value) {
   });
 }
 
-function setAuthUiBusy(busy) {
-  authSubmitButton.disabled = busy;
-  authModeButton.disabled = busy;
-  googleLoginButton.disabled = busy;
+function formatChatTime(value) {
+  if (!value) {
+    return "şimdi";
+  }
+
+  const date =
+    typeof value.toDate === "function"
+      ? value.toDate()
+      : value instanceof Date
+        ? value
+        : null;
+
+  if (!date) {
+    return "şimdi";
+  }
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
-function updateAuthMode() {
-  const isLogin = authMode === "login";
-  authSubmitButton.textContent = isLogin ? "Giriş Yap" : "Kayıt Ol";
-  authModeButton.textContent = isLogin ? "Hesap Oluştur" : "Giriş Ekranına Dön";
-  authPassword.autocomplete = isLogin ? "current-password" : "new-password";
-  setAuthStatus(isLogin ? "Hazır" : "Yeni hesap oluşturabilirsin");
+function getConversationId(uidA, uidB) {
+  return [uidA, uidB].sort().join("__");
 }
 
 function getItemDisplayName(item) {
-  return item.username || item.email || "isimsiz";
+  return item?.username || item?.email || "isimsiz";
 }
 
 function getInitials(item) {
@@ -135,6 +157,20 @@ function findOutgoingByUid(uid) {
 
 function findIncomingByUid(uid) {
   return currentIncomingRequests.find((item) => item.uid === uid);
+}
+
+function setAuthUiBusy(busy) {
+  authSubmitButton.disabled = busy;
+  authModeButton.disabled = busy;
+  googleLoginButton.disabled = busy;
+}
+
+function updateAuthMode() {
+  const isLogin = authMode === "login";
+  authSubmitButton.textContent = isLogin ? "Giriş Yap" : "Kayıt Ol";
+  authModeButton.textContent = isLogin ? "Hesap Oluştur" : "Giriş Ekranına Dön";
+  authPassword.autocomplete = isLogin ? "current-password" : "new-password";
+  setAuthStatus(isLogin ? "Hazır" : "Yeni hesap oluşturabilirsin");
 }
 
 function renderRequestList(targetElement, items, emptyText, mode) {
@@ -168,6 +204,42 @@ function renderRequestList(targetElement, items, emptyText, mode) {
       `;
     })
     .join("");
+}
+
+function renderChatPanel() {
+  if (!selectedFriend) {
+    chatTitle.textContent = "Bir arkadaş seç";
+    chatInput.value = "";
+    chatInput.disabled = true;
+    chatSendButton.disabled = true;
+    chatMessages.innerHTML =
+      '<article class="chat-empty">Arkadaş listenden birini seçince yazışma burada açılacak.</article>';
+    return;
+  }
+
+  chatTitle.textContent = `${selectedFriend.username || "Arkadaş"} ile sohbet`;
+  chatInput.disabled = false;
+  chatSendButton.disabled = false;
+
+  if (currentMessages.length === 0) {
+    chatMessages.innerHTML =
+      '<article class="chat-empty">Henüz mesaj yok. İlk mesajı sen gönder.</article>';
+    return;
+  }
+
+  chatMessages.innerHTML = currentMessages
+    .map((message) => {
+      const own = message.senderUid === currentUserProfile?.uid;
+      return `
+        <article class="chat-bubble ${own ? "own" : "friend"}">
+          <div>${escapeHtml(message.text || "")}</div>
+          <div class="chat-meta">${escapeHtml(own ? "Sen" : getItemDisplayName(selectedFriend))} · ${escapeHtml(formatChatTime(message.createdAt))}</div>
+        </article>
+      `;
+    })
+    .join("");
+
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function renderFriendsPanel() {
@@ -205,6 +277,7 @@ function renderFriendsPanel() {
           <p>Burada eklediğin kullanıcılar görünecek. İleride hızlıca tekrar bağlanmak için bu alanı kullanabilirsin.</p>
         </article>
       `;
+    renderChatPanel();
     return;
   }
 
@@ -212,7 +285,8 @@ function renderFriendsPanel() {
     .map((item) => {
       const initials = escapeHtml(getInitials(item));
       const title = escapeHtml(getItemDisplayName(item));
-      const subtitle = escapeHtml(hasSearch ? "Kullanıcı bulundu" : "Arkadaş");
+      const subtitle = escapeHtml(hasSearch ? "Kullanıcı bulundu" : "Mesajlaşmaya hazır");
+      const isSelected = !hasSearch && selectedFriend?.uid === item.uid;
 
       let actionMarkup = "";
       if (hasSearch) {
@@ -229,10 +303,12 @@ function renderFriendsPanel() {
         } else {
           actionMarkup = `<button class="friend-action-button ghost-button" type="button" data-action="send-request" data-uid="${escapeHtml(item.uid || "")}">Arkadaş Ekle</button>`;
         }
+      } else {
+        actionMarkup = `<div class="friend-status-chip">${isSelected ? "Sohbet açık" : "Sohbet aç"}</div>`;
       }
 
       return `
-        <article class="friend-item">
+        <article class="friend-item ${hasSearch ? "" : "selectable"} ${isSelected ? "selected" : ""}" ${hasSearch ? "" : `data-select-friend="${escapeHtml(item.uid || "")}"`}>
           <div class="friend-item-content">
             <strong>${title}</strong>
             <span>${subtitle}</span>
@@ -245,6 +321,8 @@ function renderFriendsPanel() {
       `;
     })
     .join("");
+
+  renderChatPanel();
 }
 
 async function ensureUserProfile(user) {
@@ -267,6 +345,13 @@ async function ensureUserProfile(user) {
   return snapshot.exists() ? snapshot.data() : null;
 }
 
+function clearChatSubscription() {
+  if (chatUnsubscribe) {
+    chatUnsubscribe();
+    chatUnsubscribe = null;
+  }
+}
+
 function clearSocialSubscriptions() {
   if (friendsUnsubscribe) {
     friendsUnsubscribe();
@@ -282,6 +367,44 @@ function clearSocialSubscriptions() {
     outgoingUnsubscribe();
     outgoingUnsubscribe = null;
   }
+
+  clearChatSubscription();
+}
+
+function subscribeToChat(friend) {
+  clearChatSubscription();
+  currentMessages = [];
+  selectedFriend = friend;
+  renderChatPanel();
+
+  if (!currentUserProfile || !friend?.uid) {
+    return;
+  }
+
+  const conversationId = getConversationId(currentUserProfile.uid, friend.uid);
+  const messagesQuery = query(
+    collection(db, "conversations", conversationId, "messages"),
+    orderBy("createdAt", "asc")
+  );
+
+  chatUnsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+    const now = Date.now();
+    currentMessages = snapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      }))
+      .filter((message) => {
+        const expiresAt =
+          typeof message.expiresAt?.toDate === "function"
+            ? message.expiresAt.toDate().getTime()
+            : message.expiresAt instanceof Date
+              ? message.expiresAt.getTime()
+              : now + 1;
+        return expiresAt > now;
+      });
+    renderChatPanel();
+  });
 }
 
 function subscribeSocialCollections(uid) {
@@ -289,6 +412,18 @@ function subscribeSocialCollections(uid) {
 
   friendsUnsubscribe = onSnapshot(collection(db, "users", uid, "friends"), (snapshot) => {
     currentFriends = snapshot.docs.map((docSnapshot) => docSnapshot.data());
+
+    if (selectedFriend) {
+      const refreshedFriend = currentFriends.find((item) => item.uid === selectedFriend.uid);
+      if (refreshedFriend) {
+        selectedFriend = refreshedFriend;
+      } else {
+        selectedFriend = null;
+        currentMessages = [];
+        clearChatSubscription();
+      }
+    }
+
     renderFriendsPanel();
   });
 
@@ -497,6 +632,43 @@ async function cancelFriendRequest(targetUid) {
   await batch.commit();
 }
 
+async function sendChatMessage() {
+  if (!currentUserProfile || !selectedFriend?.uid) {
+    return;
+  }
+
+  const text = chatInput.value.trim();
+  if (!text) {
+    return;
+  }
+
+  chatSendButton.disabled = true;
+
+  try {
+    const conversationId = getConversationId(currentUserProfile.uid, selectedFriend.uid);
+    await setDoc(
+      doc(db, "conversations", conversationId),
+      {
+        members: [currentUserProfile.uid, selectedFriend.uid],
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    await addDoc(collection(db, "conversations", conversationId, "messages"), {
+      text,
+      senderUid: currentUserProfile.uid,
+      senderUsername: currentUserProfile.username || "",
+      createdAt: serverTimestamp(),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000)
+    });
+
+    chatInput.value = "";
+  } finally {
+    chatSendButton.disabled = false;
+  }
+}
+
 window.nexchatSocial = {
   sendFriendRequest
 };
@@ -585,32 +757,48 @@ outgoingRequestsList.addEventListener("click", async (event) => {
 });
 
 friendsList.addEventListener("click", async (event) => {
-  const button = event.target.closest("button[data-action]");
-  if (!button) {
-    return;
-  }
-
-  const targetUid = button.dataset.uid;
-  if (!targetUid) {
-    return;
-  }
-
-  button.disabled = true;
-
-  try {
-    if (button.dataset.action === "send-request") {
-      const profile = searchResults.find((item) => item.uid === targetUid);
-      if (profile) {
-        await sendFriendRequest(profile);
-      }
-    } else if (button.dataset.action === "accept-request") {
-      await acceptFriendRequest(targetUid);
+  const actionButton = event.target.closest("button[data-action]");
+  if (actionButton) {
+    const targetUid = actionButton.dataset.uid;
+    if (!targetUid) {
+      return;
     }
-  } catch (error) {
-    console.error(error);
-  } finally {
-    button.disabled = false;
+
+    actionButton.disabled = true;
+    try {
+      if (actionButton.dataset.action === "send-request") {
+        const profile = searchResults.find((item) => item.uid === targetUid);
+        if (profile) {
+          await sendFriendRequest(profile);
+        }
+      } else if (actionButton.dataset.action === "accept-request") {
+        await acceptFriendRequest(targetUid);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      actionButton.disabled = false;
+    }
+    return;
   }
+
+  const friendCard = event.target.closest("[data-select-friend]");
+  if (!friendCard || friendsSearch.value.trim().length > 0) {
+    return;
+  }
+
+  const friend = currentFriends.find((item) => item.uid === friendCard.dataset.selectFriend);
+  if (!friend) {
+    return;
+  }
+
+  subscribeToChat(friend);
+  renderFriendsPanel();
+});
+
+chatForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await sendChatMessage();
 });
 
 usernameForm.addEventListener("submit", async (event) => {
@@ -681,11 +869,14 @@ onAuthStateChanged(auth, async (user) => {
   logoutButton.disabled = true;
   authPassword.value = "";
   usernameInput.value = "";
+  chatInput.value = "";
   pendingProfileUser = null;
   currentUserProfile = null;
   currentFriends = [];
   currentIncomingRequests = [];
   currentOutgoingRequests = [];
+  currentMessages = [];
+  selectedFriend = null;
   searchResults = [];
   friendsSearch.value = "";
   clearSocialSubscriptions();

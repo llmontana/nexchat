@@ -335,6 +335,7 @@ button:disabled {
   flex-direction: column;
   min-height: 72vh;
   gap: 16px;
+  overflow: hidden;
 }
 
 .friends-header {
@@ -478,7 +479,8 @@ button:disabled {
 }
 
 .friends-list {
-  flex: 1;
+  flex: 0 0 auto;
+  max-height: 240px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -494,6 +496,15 @@ button:disabled {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.friend-item.selectable {
+  cursor: pointer;
+}
+
+.friend-item.selected {
+  border-color: rgba(79, 172, 254, 0.4);
+  box-shadow: 0 12px 28px rgba(79, 172, 254, 0.14);
 }
 
 .friend-item strong {
@@ -565,6 +576,83 @@ button:disabled {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.chat-section {
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.chat-messages {
+  flex: 1;
+  min-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-empty {
+  margin: auto 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.chat-bubble {
+  max-width: 86%;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-bubble.own {
+  align-self: flex-end;
+  background: rgba(79, 172, 254, 0.16);
+  border-color: rgba(79, 172, 254, 0.28);
+}
+
+.chat-bubble.friend {
+  align-self: flex-start;
+}
+
+.chat-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.chat-form input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  outline: none;
+}
+
+.chat-form input:focus {
+  border-color: rgba(79, 172, 254, 0.5);
+  box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.12);
 }
 
 .mobile-tabbar {
@@ -933,6 +1021,14 @@ body.is-mobile .friend-item {
 body.is-mobile .request-actions,
 body.is-mobile .friend-item-actions {
   width: 100%;
+}
+
+body.is-mobile .chat-section {
+  min-height: 320px;
+}
+
+body.is-mobile .chat-form {
+  grid-template-columns: 1fr;
 }
 
 body.is-mobile.mobile-controls-collapsed .hero-card {

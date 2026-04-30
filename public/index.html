@@ -185,6 +185,35 @@
             </p>
           </article>
         </div>
+
+        <section class="chat-section">
+          <div class="chat-header">
+            <div>
+              <div class="friends-eyebrow">Mesajlar</div>
+              <h4 id="chatTitle">Bir arkadaş seç</h4>
+            </div>
+          </div>
+
+          <div id="chatMessages" class="chat-messages">
+            <article class="chat-empty">
+              Arkadaş listenden birini seçince yazışma burada açılacak.
+            </article>
+          </div>
+
+          <form id="chatForm" class="chat-form">
+            <input
+              id="chatInput"
+              type="text"
+              placeholder="Mesaj yaz"
+              autocomplete="off"
+              maxlength="400"
+              disabled
+            />
+            <button id="chatSendButton" class="primary-button" type="submit" disabled>
+              Gönder
+            </button>
+          </form>
+        </section>
       </aside>
     </main>
 
