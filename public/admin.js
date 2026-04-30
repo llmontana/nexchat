@@ -10,6 +10,8 @@ import {
 import {
   collection,
   getDoc,
+  getDocFromServer,
+  getDocsFromServer,
   getDocs,
   getFirestore,
   serverTimestamp,
@@ -306,7 +308,7 @@ function renderStats() {
 
 async function ensureUserProfile(user) {
   const userRef = doc(db, "users", user.uid);
-  const userSnapshot = await getDoc(userRef);
+  const userSnapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
   const existing = userSnapshot.exists() ? userSnapshot.data() : null;
   const adminByEmail = isAdminEmail(user.email || "");
 
@@ -330,7 +332,9 @@ async function ensureUserProfile(user) {
 }
 
 async function loadDashboard() {
-  const snapshot = await getDocs(collection(db, "users"));
+  const snapshot = await getDocsFromServer(collection(db, "users")).catch(() =>
+    getDocs(collection(db, "users"))
+  );
   allUsers = snapshot.docs.map((item) => item.data());
 
   const [sessionsResult, bansResult] = await Promise.allSettled([

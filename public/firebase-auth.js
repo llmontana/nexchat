@@ -13,6 +13,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
   getFirestore,
   onSnapshot,
@@ -408,7 +409,7 @@ function renderFriendsPanel() {
 
 async function ensureUserProfile(user) {
   const userRef = doc(db, "users", user.uid);
-  const snapshot = await getDoc(userRef);
+  const snapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
   const email = user.email || "";
   const adminByEmail = isAdminEmail(email);
 
@@ -427,7 +428,7 @@ async function ensureUserProfile(user) {
     { merge: true }
   );
 
-  const freshSnapshot = await getDoc(userRef);
+  const freshSnapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
   return freshSnapshot.exists() ? freshSnapshot.data() : null;
 }
 
