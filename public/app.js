@@ -16,6 +16,8 @@ const eventLog = document.getElementById("eventLog");
 const deviceBadge = document.getElementById("deviceBadge");
 const mobileDrawerToggle = document.getElementById("mobileDrawerToggle");
 const logoutButton = document.getElementById("logoutButton");
+const mobileHomeTab = document.getElementById("mobileHomeTab");
+const mobileFriendsTab = document.getElementById("mobileFriendsTab");
 
 const rtcConfig = {
   iceServers: [
@@ -37,6 +39,7 @@ let mobileControlsCollapsed = false;
 let reportInFlight = false;
 let isAuthenticated = false;
 let currentUserProfile = null;
+let mobileActiveTab = "home";
 
 function setLocalLabel(username) {
   localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
@@ -44,6 +47,16 @@ function setLocalLabel(username) {
 
 function setRemoteLabel(username) {
   remoteVideoLabel.textContent = username || "Yabancı";
+}
+
+function syncMobileTabs() {
+  const isMobile = document.body.classList.contains("is-mobile");
+  document.body.classList.toggle(
+    "mobile-show-friends",
+    isMobile && mobileActiveTab === "friends"
+  );
+  mobileHomeTab.classList.toggle("active", mobileActiveTab === "home");
+  mobileFriendsTab.classList.toggle("active", mobileActiveTab === "friends");
 }
 
 function detectMobileLayout() {
@@ -67,7 +80,10 @@ function applyDeviceMode() {
     mobileControlsCollapsed = false;
     mobileDrawerToggle.setAttribute("aria-expanded", "true");
     mobileDrawerToggle.setAttribute("aria-label", "Kontrolleri gizle");
+    mobileActiveTab = "home";
   }
+
+  syncMobileTabs();
 }
 
 function setStatus(text) {
@@ -394,6 +410,16 @@ mobileDrawerToggle.addEventListener("click", () => {
   syncMobileDrawerState();
 });
 
+mobileHomeTab.addEventListener("click", () => {
+  mobileActiveTab = "home";
+  syncMobileTabs();
+});
+
+mobileFriendsTab.addEventListener("click", () => {
+  mobileActiveTab = "friends";
+  syncMobileTabs();
+});
+
 reportButton.addEventListener("click", () => {
   if (!isConnected || reportInFlight) {
     return;
@@ -562,6 +588,7 @@ socket.on("webrtc-ice-candidate", async (candidate) => {
 applyDeviceMode();
 syncMobileDrawerState();
 syncActionButtons();
+syncMobileTabs();
 setLocalLabel("");
 setRemoteLabel("");
 window.addEventListener("resize", applyDeviceMode);

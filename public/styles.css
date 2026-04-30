@@ -412,6 +412,10 @@ button:disabled {
   line-height: 1.6;
 }
 
+.mobile-tabbar {
+  display: none;
+}
+
 .video-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -506,6 +510,30 @@ body.is-mobile .video-card {
   background: #05070b;
   border: 0;
   box-shadow: none;
+}
+
+body.is-mobile .friends-card {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  min-height: 100vh;
+  border-radius: 0;
+  padding: 22px 16px 90px;
+  background: #05070b;
+  border: 0;
+  box-shadow: none;
+}
+
+body.is-mobile.mobile-show-friends .friends-card {
+  display: flex;
+}
+
+body.is-mobile.mobile-show-friends .video-card,
+body.is-mobile.mobile-show-friends .hero-card,
+body.is-mobile.mobile-show-friends .mobile-drawer-toggle,
+body.is-mobile.mobile-show-friends .event-log {
+  display: none;
 }
 
 body.is-mobile .video-grid {
@@ -604,6 +632,36 @@ body.is-mobile .device-controls {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+body.is-mobile .mobile-tabbar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(12, 15, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.mobile-tab {
+  min-height: 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+
+.mobile-tab.active {
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  animation: rainbow-shift 8s linear infinite;
+}
+
 body.is-mobile button {
   width: 100%;
   min-height: 36px;
@@ -633,7 +691,7 @@ body.is-mobile .event-item {
 
 body.is-mobile .video-placeholder {
   padding: 32px;
-  padding-bottom: 110px;
+  padding-bottom: 78px;
   align-items: flex-start;
   padding-top: 88px;
 }
@@ -651,7 +709,7 @@ body.is-mobile.mobile-controls-collapsed .mobile-drawer-toggle {
 }
 
 body.is-mobile.mobile-controls-collapsed .event-log {
-  bottom: 40px;
+  bottom: 78px;
 }
 
 body.is-mobile.mobile-controls-collapsed .video-placeholder {
