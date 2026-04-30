@@ -378,6 +378,27 @@ body.is-mobile .device-controls {
   gap: 6px;
 }
 
+body.is-mobile #reportButton {
+  position: fixed;
+  top: 18px;
+  left: 14px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 88px;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.26);
+}
+
+body.is-mobile .device-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 body.is-mobile button {
   width: 100%;
   min-height: 36px;
@@ -409,7 +430,7 @@ body.is-mobile .video-placeholder {
   padding: 32px;
   padding-bottom: 110px;
   align-items: flex-start;
-  padding-top: 110px;
+  padding-top: 88px;
 }
 
 body.is-mobile.mobile-controls-collapsed .hero-card {
