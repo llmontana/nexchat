@@ -7,6 +7,7 @@ const reportButton = document.getElementById("reportButton");
 const addFriendButton = document.getElementById("addFriendButton");
 const toggleMicButton = document.getElementById("toggleMicButton");
 const toggleCameraButton = document.getElementById("toggleCameraButton");
+const flipCameraButton = document.getElementById("flipCameraButton");
 const localVideoLabel = document.getElementById("localVideoLabel");
 const localVideo = document.getElementById("localVideo");
 const remoteVideoLabel = document.getElementById("remoteVideoLabel");
@@ -45,6 +46,8 @@ let currentUserProfile = null;
 let currentPartnerProfile = null;
 let mobileActiveTab = "home";
 let activeMatchFilter = "any";
+let availableVideoInputs = [];
+let currentVideoInputId = "";
 
 function setLocalLabel(username) {
   localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
@@ -122,6 +125,10 @@ function syncMediaToggleLabels() {
     videoTrack && !videoTrack.enabled ? "Kamerayı Aç" : "Kamerayı Kapat";
 }
 
+function syncFindButtonState() {
+  findButton.textContent = isMatching || isConnected ? "Sohbeti Durdur" : "Sohbete Başla";
+}
+
 function resumeRemotePlayback() {
   if (!remoteVideo.srcObject) {
     return;
@@ -144,11 +151,12 @@ function syncMobileDrawerState() {
 
 function syncActionButtons() {
   startButton.disabled = !isAuthenticated || mediaReady;
-  findButton.disabled = !isAuthenticated || !mediaReady || isMatching || isConnected;
+  findButton.disabled = !isAuthenticated || !mediaReady;
   nextButton.disabled = !isAuthenticated || !mediaReady || (!isMatching && !isConnected);
   reportButton.disabled = !isAuthenticated || !isConnected || reportInFlight;
   logoutButton.disabled = !isAuthenticated;
   addFriendButton.disabled = !isAuthenticated || !currentPartnerProfile?.uid;
+  flipCameraButton.disabled = !mediaReady || availableVideoInputs.length < 2;
   premiumGirlButton.disabled =
     !isAuthenticated ||
     isMatching ||
@@ -159,6 +167,7 @@ function syncActionButtons() {
     isMatching ||
     isConnected ||
     Number(currentUserProfile?.diamonds || 0) < 5;
+  syncFindButtonState();
 }
 
 function logEvent(text) {
@@ -173,7 +182,21 @@ function setDeviceControlsEnabled(enabled) {
   reportButton.disabled = !enabled || !isConnected || reportInFlight;
   toggleMicButton.disabled = !enabled;
   toggleCameraButton.disabled = !enabled;
+  flipCameraButton.disabled = !enabled || availableVideoInputs.length < 2;
   syncMediaToggleLabels();
+}
+
+async function refreshVideoInputs() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    availableVideoInputs = devices.filter((device) => device.kind === "videoinput");
+  } catch (error) {
+    availableVideoInputs = [];
+  }
+
+  const videoTrack = localStream?.getVideoTracks?.()[0];
+  currentVideoInputId = videoTrack?.getSettings?.().deviceId || currentVideoInputId || "";
+  syncActionButtons();
 }
 
 function captureRemoteFrame() {
@@ -227,9 +250,10 @@ async function ensureLocalMedia() {
   localVideo.srcObject = stream;
   localVideo.play().catch(() => {});
   mediaReady = true;
+  currentVideoInputId = stream.getVideoTracks()[0]?.getSettings?.().deviceId || "";
+  await refreshVideoInputs();
   setDeviceControlsEnabled(true);
   syncMediaToggleLabels();
-  findButton.disabled = false;
   setStatus("Kamera hazır");
   syncActionButtons();
   return stream;
@@ -239,10 +263,12 @@ function resetRemoteVideo() {
   remoteVideo.srcObject = null;
   remoteVideo.load();
   isMatching = false;
+  isConnected = false;
   activeMatchFilter = "any";
   currentPartnerProfile = null;
   setRemoteLabel("");
   setConnectedState(false);
+  syncFindButtonState();
 }
 
 function cleanupPeerConnection() {
@@ -271,8 +297,11 @@ function resetLocalMedia() {
   localStream = null;
   localVideo.srcObject = null;
   mediaReady = false;
+  availableVideoInputs = [];
+  currentVideoInputId = "";
   setDeviceControlsEnabled(false);
   syncMediaToggleLabels();
+  syncActionButtons();
 }
 
 function leaveActiveSession() {
@@ -284,6 +313,18 @@ function leaveActiveSession() {
   cleanupPeerConnection();
   isMatching = false;
   isConnected = false;
+}
+
+function stopConversationFlow() {
+  socket.emit("stop-matching");
+  cleanupPeerConnection();
+  isMatching = false;
+  isConnected = false;
+  mobileActiveTab = "home";
+  syncMobileTabs();
+  setStatus("Sohbet durduruldu");
+  logEvent("Eşleşme ve aktif görüşme durduruldu.");
+  syncActionButtons();
 }
 
 function createPeerConnection() {
@@ -385,6 +426,11 @@ findButton.addEventListener("click", async () => {
     return;
   }
 
+  if (isMatching || isConnected) {
+    stopConversationFlow();
+    return;
+  }
+
   try {
     await requestPartner();
   } catch (error) {
@@ -455,6 +501,61 @@ toggleCameraButton.addEventListener("click", () => {
   videoTrack.enabled = !videoTrack.enabled;
   syncMediaToggleLabels();
   logEvent(videoTrack.enabled ? "Kamera açıldı." : "Kamera kapatıldı.");
+});
+
+flipCameraButton.addEventListener("click", async () => {
+  if (!localStream || availableVideoInputs.length < 2) {
+    return;
+  }
+
+  const currentIndex = availableVideoInputs.findIndex(
+    (device) => device.deviceId === currentVideoInputId
+  );
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % availableVideoInputs.length : 0;
+  const nextDevice = availableVideoInputs[nextIndex];
+  if (!nextDevice) {
+    return;
+  }
+
+  flipCameraButton.disabled = true;
+
+  try {
+    const nextStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        deviceId: { exact: nextDevice.deviceId }
+      }
+    });
+
+    const nextVideoTrack = nextStream.getVideoTracks()[0];
+    const oldVideoTrack = localStream.getVideoTracks()[0];
+
+    if (peerConnection) {
+      const videoSender = peerConnection
+        .getSenders()
+        .find((sender) => sender.track && sender.track.kind === "video");
+      if (videoSender) {
+        await videoSender.replaceTrack(nextVideoTrack);
+      }
+    }
+
+    if (oldVideoTrack) {
+      localStream.removeTrack(oldVideoTrack);
+      oldVideoTrack.stop();
+    }
+
+    localStream.addTrack(nextVideoTrack);
+    currentVideoInputId = nextDevice.deviceId;
+    localVideo.srcObject = localStream;
+    localVideo.play().catch(() => {});
+    await refreshVideoInputs();
+    syncMediaToggleLabels();
+    logEvent("Kamera yönü değiştirildi.");
+  } catch (error) {
+    logEvent(`Kamera değiştirilemedi: ${error.message}`);
+  } finally {
+    syncActionButtons();
+  }
 });
 
 mobileDrawerToggle.addEventListener("click", () => {

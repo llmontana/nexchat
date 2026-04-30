@@ -569,6 +569,10 @@ io.on("connection", (socket) => {
     leaveConversation(socket, true);
   });
 
+  socket.on("stop-matching", () => {
+    leaveConversation(socket, false);
+  });
+
   socket.on("report-user", async ({ imageData }) => {
     const partnerId = getPartnerId(socket.id);
     if (!partnerId || typeof imageData !== "string" || imageData.length === 0) {

@@ -941,6 +941,23 @@ body.chat-open .chat-section {
   font-weight: 700;
 }
 
+.flip-camera-button {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 3;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(10, 15, 22, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: white;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
 .remote-label-row {
   position: absolute;
   top: 16px;
@@ -1139,6 +1156,14 @@ body.is-mobile .video-panel:first-child {
 
 body.is-mobile .video-panel:first-child video {
   transform: scaleX(-1);
+}
+
+body.is-mobile .flip-camera-button {
+  right: 10px;
+  bottom: 10px;
+  width: 38px;
+  height: 38px;
+  font-size: 0.92rem;
 }
 
 body.is-mobile .hero-card {
