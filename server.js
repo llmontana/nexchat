@@ -293,8 +293,6 @@ app.use((request, response, next) => {
 function pairSockets(firstId, secondId) {
   peers.set(firstId, secondId);
   peers.set(secondId, firstId);
-  matchPreferences.delete(firstId);
-  matchPreferences.delete(secondId);
 
   io.to(firstId).emit("partner-found", {
     initiator: true,
@@ -687,6 +685,14 @@ io.on("connection", (socket) => {
 
   socket.on("stop-matching", () => {
     leaveConversation(socket, false);
+  });
+
+  socket.on("set-match-filter", ({ genderFilter } = {}) => {
+    if (!isSocketAuthenticated(socket.id)) {
+      return;
+    }
+
+    matchPreferences.set(socket.id, normalizeGenderFilter(genderFilter));
   });
 
   socket.on("report-user", async ({ imageData }) => {

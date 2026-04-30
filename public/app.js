@@ -51,6 +51,7 @@ let availableVideoInputs = [];
 let currentVideoInputId = "";
 const DEFAULT_GIRL_FILTER_LABEL = "9 ◈";
 const DEFAULT_BOY_FILTER_LABEL = "5 ◈";
+let premiumChargeSettledForCurrentMatch = false;
 
 function setLocalLabel(username) {
   localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
@@ -280,7 +281,7 @@ function resetRemoteVideo() {
   remoteVideo.load();
   isMatching = false;
   isConnected = false;
-  activeMatchFilter = "any";
+  premiumChargeSettledForCurrentMatch = false;
   currentPartnerProfile = null;
   setRemoteLabel("");
   setConnectedState(false);
@@ -337,7 +338,7 @@ function stopConversationFlow() {
   cleanupPeerConnection();
   isMatching = false;
   isConnected = false;
-  activeMatchFilter = "any";
+  premiumChargeSettledForCurrentMatch = false;
   mobileActiveTab = "home";
   syncMobileTabs();
   setStatus("Sohbet durduruldu");
@@ -450,7 +451,7 @@ findButton.addEventListener("click", async () => {
   }
 
   try {
-    await requestPartner();
+    await requestPartner(activeMatchFilter);
   } catch (error) {
     isMatching = false;
     syncActionButtons();
@@ -466,11 +467,12 @@ async function startPremiumMatch(targetGender) {
 
   try {
     await ensureLocalMedia();
-    const result = await window.nexchatPremium.consumeGenderFilter(targetGender);
+    activeMatchFilter = targetGender;
+    premiumChargeSettledForCurrentMatch = false;
+    socket.emit("set-match-filter", {
+      genderFilter: targetGender
+    });
     await requestPartner(targetGender);
-    logEvent(
-      `${targetGender === "kiz" ? "Sadece kız" : "Sadece erkek"} filtresi için ${result.cost} elmas kullanıldı.`
-    );
     logEvent(
       `${targetGender === "kiz" ? "Kız" : "Erkek"} filtresi seçildi. Sadece bu cinsiyetle kayıt olan kullanıcılar aranacak.`
     );
@@ -488,6 +490,7 @@ nextButton.addEventListener("click", async () => {
 
   cleanupPeerConnection();
   isMatching = true;
+  premiumChargeSettledForCurrentMatch = false;
   setStatus("Yeni partner aranıyor...");
   logEvent("Eşleşme sonlandırıldı. Yeni biri aranıyor.");
   syncActionButtons();
@@ -617,6 +620,10 @@ clearPremiumFilterButton.addEventListener("click", () => {
   }
 
   activeMatchFilter = "any";
+  premiumChargeSettledForCurrentMatch = false;
+  socket.emit("set-match-filter", {
+    genderFilter: "any"
+  });
   syncActionButtons();
   setStatus("Filtre sıfırlandı");
   logEvent("Aktif premium filtre sıfırlandı.");
@@ -687,6 +694,13 @@ socket.on("waiting", () => {
 socket.on("partner-found", async ({ initiator, partnerProfile }) => {
   try {
     await ensureLocalMedia();
+    if (activeMatchFilter !== "any" && !premiumChargeSettledForCurrentMatch) {
+      const result = await window.nexchatPremium.consumeGenderFilter(activeMatchFilter);
+      premiumChargeSettledForCurrentMatch = true;
+      logEvent(
+        `${activeMatchFilter === "kiz" ? "Sadece kız" : "Sadece erkek"} filtresi için ${result.cost} elmas kullanıldı.`
+      );
+    }
     politePeer = !initiator;
     const connection = createPeerConnection();
     currentPartnerProfile = partnerProfile || null;
@@ -708,6 +722,10 @@ socket.on("partner-found", async ({ initiator, partnerProfile }) => {
     }
   } catch (error) {
     makingOffer = false;
+    if (activeMatchFilter !== "any" && !premiumChargeSettledForCurrentMatch) {
+      stopConversationFlow();
+      setStatus("Premium filtre için elmas yetersiz");
+    }
     logEvent(`Partner bağlantısı başlatılamadı: ${error.message}`);
   }
 });
@@ -746,6 +764,8 @@ window.addEventListener("auth-state", ({ detail }) => {
     socket.emit("sign-out");
     leaveActiveSession();
     resetLocalMedia();
+    activeMatchFilter = "any";
+    premiumChargeSettledForCurrentMatch = false;
     currentUserProfile = null;
     currentPartnerProfile = null;
     setLocalLabel("");
