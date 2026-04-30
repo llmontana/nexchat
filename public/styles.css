@@ -1299,29 +1299,35 @@ body.is-mobile .video-placeholder {
 body.is-mobile .remote-label-row {
   top: 14px;
   left: 14px;
-  right: 14px;
+  right: auto;
+  justify-content: flex-start;
   gap: 8px;
 }
 
 body.is-mobile .add-friend-button {
-  min-height: 36px;
-  max-width: 148px;
-  padding: 8px 12px;
-  gap: 8px;
+  min-height: 28px;
+  min-width: 54px;
+  padding: 6px 10px;
+  gap: 5px;
   border-radius: 999px;
+  background: rgba(15, 22, 31, 0.88);
+  border: 1px solid rgba(104, 168, 255, 0.24);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
 }
 
 body.is-mobile .add-friend-icon {
-  width: 18px;
-  height: 18px;
-  font-size: 0.85rem;
+  width: 14px;
+  height: 14px;
+  font-size: 0.72rem;
   flex: 0 0 auto;
+  background-image: linear-gradient(140deg, #2bf1b7, #68a8ff);
 }
 
 body.is-mobile .add-friend-text {
-  font-size: 0.74rem;
+  font-size: 0.66rem;
   line-height: 1.1;
   white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 body.is-mobile .request-item,
