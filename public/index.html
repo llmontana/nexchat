@@ -22,6 +22,34 @@
     >
       <span class="mobile-drawer-arrow"></span>
     </button>
+    <section id="authOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <div class="auth-badge">Firebase Auth</div>
+        <h2>Nexchat'e Giris Yap</h2>
+        <p class="auth-copy">
+          Sohbete baslamadan once bir hesapla giris yapman gerekiyor.
+        </p>
+
+        <form id="authForm" class="auth-form">
+          <input id="authEmail" type="email" placeholder="E-posta" autocomplete="email" required />
+          <input
+            id="authPassword"
+            type="password"
+            placeholder="Sifre"
+            autocomplete="current-password"
+            minlength="6"
+            required
+          />
+          <button id="authSubmitButton" class="primary-button" type="submit">Giris Yap</button>
+        </form>
+
+        <div class="auth-actions">
+          <button id="authModeButton" class="ghost-button" type="button">Hesap Olustur</button>
+        </div>
+
+        <div id="authStatus" class="auth-status">Hazir</div>
+      </div>
+    </section>
     <main class="app-shell">
       <section class="hero-card">
         <div class="eyebrow">Nex Anonim Görüntülü Sohbet</div>
@@ -45,6 +73,8 @@
         </div>
 
         <div id="statusBadge" class="status-badge">Hazir</div>
+        <div id="sessionBadge" class="device-badge">Giris yapilmadi</div>
+        <button id="logoutButton" class="ghost-button" type="button" disabled>Cikis Yap</button>
 
         <div class="tips-card">
           <strong>Not</strong>
@@ -76,6 +106,7 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="/firebase-auth.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

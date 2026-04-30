@@ -13,6 +13,7 @@ const statusBadge = document.getElementById("statusBadge");
 const eventLog = document.getElementById("eventLog");
 const deviceBadge = document.getElementById("deviceBadge");
 const mobileDrawerToggle = document.getElementById("mobileDrawerToggle");
+const logoutButton = document.getElementById("logoutButton");
 
 const rtcConfig = {
   iceServers: [
@@ -32,6 +33,7 @@ let isMatching = false;
 let isConnected = false;
 let mobileControlsCollapsed = false;
 let reportInFlight = false;
+let isAuthenticated = false;
 
 function detectMobileLayout() {
   const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
@@ -98,10 +100,11 @@ function syncMobileDrawerState() {
 }
 
 function syncActionButtons() {
-  startButton.disabled = mediaReady;
-  findButton.disabled = !mediaReady || isMatching || isConnected;
-  nextButton.disabled = !mediaReady || (!isMatching && !isConnected);
-  reportButton.disabled = !isConnected || reportInFlight;
+  startButton.disabled = !isAuthenticated || mediaReady;
+  findButton.disabled = !isAuthenticated || !mediaReady || isMatching || isConnected;
+  nextButton.disabled = !isAuthenticated || !mediaReady || (!isMatching && !isConnected);
+  reportButton.disabled = !isAuthenticated || !isConnected || reportInFlight;
+  logoutButton.disabled = !isAuthenticated;
 }
 
 function logEvent(text) {
@@ -202,6 +205,19 @@ function cleanupPeerConnection() {
   resetRemoteVideo();
 }
 
+function resetLocalMedia() {
+  if (!localStream) {
+    return;
+  }
+
+  localStream.getTracks().forEach((track) => track.stop());
+  localStream = null;
+  localVideo.srcObject = null;
+  mediaReady = false;
+  setDeviceControlsEnabled(false);
+  syncMediaToggleLabels();
+}
+
 function createPeerConnection() {
   cleanupPeerConnection();
 
@@ -273,6 +289,11 @@ async function flushPendingIceCandidates() {
 }
 
 startButton.addEventListener("click", async () => {
+  if (!isAuthenticated) {
+    setStatus("Giris yapman gerekiyor");
+    return;
+  }
+
   try {
     await ensureLocalMedia();
     logEvent("Kamera ve mikrofon hazir. Simdi sohbeti baslatabilirsin.");
@@ -285,7 +306,7 @@ startButton.addEventListener("click", async () => {
 });
 
 findButton.addEventListener("click", async () => {
-  if (!mediaReady) {
+  if (!isAuthenticated || !mediaReady) {
     return;
   }
 
@@ -299,7 +320,7 @@ findButton.addEventListener("click", async () => {
 });
 
 nextButton.addEventListener("click", async () => {
-  if (!localStream || (!isMatching && !isConnected)) {
+  if (!isAuthenticated || !localStream || (!isMatching && !isConnected)) {
     return;
   }
 
@@ -424,6 +445,22 @@ socket.on("moderation-ban", ({ message }) => {
   cleanupPeerConnection();
   setStatus("Erisim engellendi");
   logEvent(message || "Uygunsuz icerik nedeniyle erisim engellendi.");
+});
+
+window.addEventListener("auth-state", ({ detail }) => {
+  isAuthenticated = Boolean(detail?.authenticated);
+
+  if (!isAuthenticated) {
+    cleanupPeerConnection();
+    resetLocalMedia();
+    setStatus("Giris yapman gerekiyor");
+    logEvent("Sohbete devam etmek icin giris yap.");
+  } else {
+    setStatus("Giris yapildi");
+    logEvent(`${detail.user.email} ile oturum acildi.`);
+  }
+
+  syncActionButtons();
 });
 
 socket.on("webrtc-offer", async (offer) => {
