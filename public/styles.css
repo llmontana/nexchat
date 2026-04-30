@@ -334,7 +334,7 @@ body.is-mobile .hero-card {
 body.is-mobile .mobile-drawer-toggle {
   position: fixed;
   left: 50%;
-  bottom: 104px;
+  bottom: 132px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
