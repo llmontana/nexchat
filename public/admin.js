@@ -364,7 +364,8 @@ async function updateUserDiamonds(uid, amount) {
   await setDoc(
     doc(db, "users", uid),
     {
-      diamonds: Math.max(0, Number(amount) || 0)
+      diamonds: Math.max(0, Number(amount) || 0),
+      diamondUpdatedAt: serverTimestamp()
     },
     { merge: true }
   );

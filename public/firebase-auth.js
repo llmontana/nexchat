@@ -427,7 +427,8 @@ async function ensureUserProfile(user) {
     { merge: true }
   );
 
-  return snapshot.exists() ? snapshot.data() : null;
+  const freshSnapshot = await getDoc(userRef);
+  return freshSnapshot.exists() ? freshSnapshot.data() : null;
 }
 
 async function maybeResolveMutualRequests() {

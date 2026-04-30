@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const http = require("http");
@@ -20,6 +21,9 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr72@gmail.com")
   .map((item) => item.trim().toLocaleLowerCase("tr-TR"))
   .filter(Boolean);
 const waitingQueue = [];
+const dataDirectory = path.join(__dirname, "data");
+const recentSessionsFilePath = path.join(dataDirectory, "recent-sessions.json");
+const bannedIpsFilePath = path.join(dataDirectory, "banned-ips.json");
 
 const peers = new Map();
 const socketProfiles = new Map();
@@ -29,9 +33,93 @@ const matchPreferences = new Map();
 const lastPartnerBySocket = new Map();
 const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"]);
 const bannedIps = new Map();
+let persistenceWriteTimer = null;
 
 app.set("trust proxy", true);
 app.use(express.json({ limit: "2mb" }));
+
+function ensureDataDirectory() {
+  if (!fs.existsSync(dataDirectory)) {
+    fs.mkdirSync(dataDirectory, { recursive: true });
+  }
+}
+
+function readJsonFile(filePath, fallbackValue) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return fallbackValue;
+    }
+
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch (error) {
+    console.error(`Veri dosyasi okunamadi: ${filePath}`, error);
+    return fallbackValue;
+  }
+}
+
+function writePersistenceSnapshot() {
+  ensureDataDirectory();
+
+  const sessionsPayload = [...recentUserSessions.values()];
+  const bansPayload = [...bannedIps.entries()].map(([ip, record]) => ({
+    ip,
+    reason: record.reason,
+    expiresAt: record.expiresAt
+  }));
+
+  fs.writeFileSync(recentSessionsFilePath, JSON.stringify(sessionsPayload, null, 2));
+  fs.writeFileSync(bannedIpsFilePath, JSON.stringify(bansPayload, null, 2));
+}
+
+function schedulePersistenceWrite() {
+  if (persistenceWriteTimer) {
+    clearTimeout(persistenceWriteTimer);
+  }
+
+  persistenceWriteTimer = setTimeout(() => {
+    persistenceWriteTimer = null;
+    writePersistenceSnapshot();
+  }, 100);
+}
+
+function restorePersistentState() {
+  ensureDataDirectory();
+
+  const storedSessions = readJsonFile(recentSessionsFilePath, []);
+  if (Array.isArray(storedSessions)) {
+    for (const session of storedSessions) {
+      if (!session || typeof session.uid !== "string" || !session.uid.trim()) {
+        continue;
+      }
+
+      recentUserSessions.set(session.uid, {
+        uid: session.uid,
+        username: typeof session.username === "string" ? session.username : "",
+        email: typeof session.email === "string" ? session.email : "",
+        ip: typeof session.ip === "string" ? session.ip : "",
+        lastSeen: typeof session.lastSeen === "number" ? session.lastSeen : Date.now()
+      });
+    }
+  }
+
+  const storedBans = readJsonFile(bannedIpsFilePath, []);
+  if (Array.isArray(storedBans)) {
+    for (const entry of storedBans) {
+      if (!entry || typeof entry.ip !== "string" || !entry.ip.trim()) {
+        continue;
+      }
+
+      if (typeof entry.expiresAt !== "number" || entry.expiresAt <= Date.now()) {
+        continue;
+      }
+
+      bannedIps.set(entry.ip, {
+        reason: typeof entry.reason === "string" ? entry.reason : "Belirtilmedi",
+        expiresAt: entry.expiresAt
+      });
+    }
+  }
+}
 
 function getRequestIp(request) {
   return request.ip || request.socket.remoteAddress || "";
@@ -58,6 +146,7 @@ function getBanRecord(ip) {
 
   if (record.expiresAt <= Date.now()) {
     bannedIps.delete(ip);
+    schedulePersistenceWrite();
     return null;
   }
 
@@ -77,6 +166,7 @@ function banIp(ip, reason) {
     reason,
     expiresAt: Date.now() + BAN_DURATION_MS
   });
+  schedulePersistenceWrite();
 }
 
 function unbanIp(ip) {
@@ -84,7 +174,11 @@ function unbanIp(ip) {
     return false;
   }
 
-  return bannedIps.delete(ip);
+  const deleted = bannedIps.delete(ip);
+  if (deleted) {
+    schedulePersistenceWrite();
+  }
+  return deleted;
 }
 
 function isAdminEmail(email) {
@@ -181,6 +275,8 @@ async function verifyAdminRequest(request) {
 
   return authUser;
 }
+
+restorePersistentState();
 
 app.use((request, response, next) => {
   const ip = getRequestIp(request);
@@ -449,6 +545,7 @@ app.post("/api/session-sync", async (request, response) => {
       ip: getRequestIp(request),
       lastSeen: Date.now()
     });
+    schedulePersistenceWrite();
 
     response.json({
       ok: true
@@ -487,6 +584,14 @@ io.on("connection", (socket) => {
     try {
       const authUser = await verifyFirebaseIdToken(idToken.trim());
       authenticatedSockets.set(socket.id, authUser);
+      recentUserSessions.set(authUser.uid, {
+        uid: authUser.uid,
+        username: recentUserSessions.get(authUser.uid)?.username || "",
+        email: authUser.email || "",
+        ip: getSocketIp(socket),
+        lastSeen: Date.now()
+      });
+      schedulePersistenceWrite();
       socket.emit("authentication-result", {
         ok: true
       });
@@ -537,6 +642,7 @@ io.on("connection", (socket) => {
       ip: getSocketIp(socket),
       lastSeen: Date.now()
     });
+    schedulePersistenceWrite();
 
     const partnerId = getPartnerId(socket.id);
     if (partnerId) {
