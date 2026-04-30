@@ -1019,9 +1019,22 @@ body.is-mobile .friends-card {
 
 body.is-mobile .premium-card {
   display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  min-height: 100vh;
+  border-radius: 0;
+  padding: 22px 16px 90px;
+  background: #05070b;
+  border: 0;
+  box-shadow: none;
 }
 
 body.is-mobile.mobile-show-friends .friends-card {
+  display: flex;
+}
+
+body.is-mobile.mobile-show-premium .premium-card {
   display: flex;
 }
 
@@ -1029,6 +1042,14 @@ body.is-mobile.mobile-show-friends .video-card,
 body.is-mobile.mobile-show-friends .hero-card,
 body.is-mobile.mobile-show-friends .mobile-drawer-toggle,
 body.is-mobile.mobile-show-friends .event-log {
+  display: none;
+}
+
+body.is-mobile.mobile-show-premium .video-card,
+body.is-mobile.mobile-show-premium .hero-card,
+body.is-mobile.mobile-show-premium .mobile-drawer-toggle,
+body.is-mobile.mobile-show-premium .event-log,
+body.is-mobile.mobile-show-premium .friends-card {
   display: none;
 }
 
@@ -1135,7 +1156,7 @@ body.is-mobile .mobile-tabbar {
   bottom: 10px;
   z-index: 8;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 8px;
   border-radius: 18px;
@@ -1231,6 +1252,10 @@ body.is-mobile .chat-section {
 
 body.is-mobile .chat-form {
   grid-template-columns: 1fr;
+}
+
+body.is-mobile .premium-card .premium-note {
+  margin-top: 0;
 }
 
 body.is-mobile.mobile-controls-collapsed .hero-card {

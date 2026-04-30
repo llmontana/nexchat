@@ -18,6 +18,7 @@ const mobileDrawerToggle = document.getElementById("mobileDrawerToggle");
 const logoutButton = document.getElementById("logoutButton");
 const mobileHomeTab = document.getElementById("mobileHomeTab");
 const mobileFriendsTab = document.getElementById("mobileFriendsTab");
+const mobilePremiumTab = document.getElementById("mobilePremiumTab");
 
 const rtcConfig = {
   iceServers: [
@@ -56,8 +57,13 @@ function syncMobileTabs() {
     "mobile-show-friends",
     isMobile && mobileActiveTab === "friends"
   );
+  document.body.classList.toggle(
+    "mobile-show-premium",
+    isMobile && mobileActiveTab === "premium"
+  );
   mobileHomeTab.classList.toggle("active", mobileActiveTab === "home");
   mobileFriendsTab.classList.toggle("active", mobileActiveTab === "friends");
+  mobilePremiumTab.classList.toggle("active", mobileActiveTab === "premium");
 }
 
 function detectMobileLayout() {
@@ -418,6 +424,11 @@ mobileHomeTab.addEventListener("click", () => {
 
 mobileFriendsTab.addEventListener("click", () => {
   mobileActiveTab = "friends";
+  syncMobileTabs();
+});
+
+mobilePremiumTab.addEventListener("click", () => {
+  mobileActiveTab = "premium";
   syncMobileTabs();
 });
 
