@@ -79,6 +79,29 @@
             autocomplete="nickname"
             required
           />
+          <div class="gender-picker" aria-label="Cinsiyet seçimi">
+            <button
+              id="genderGirlButton"
+              class="gender-card"
+              type="button"
+              data-gender="kiz"
+              aria-pressed="false"
+            >
+              <span class="gender-icon" aria-hidden="true">♀</span>
+              <span class="gender-label">Kız</span>
+            </button>
+            <button
+              id="genderBoyButton"
+              class="gender-card"
+              type="button"
+              data-gender="erkek"
+              aria-pressed="false"
+            >
+              <span class="gender-icon" aria-hidden="true">♂</span>
+              <span class="gender-label">Erkek</span>
+            </button>
+          </div>
+          <input id="genderInput" type="hidden" value="" />
           <button id="usernameSubmitButton" class="primary-button" type="submit">
             Devam Et
           </button>
@@ -214,6 +237,56 @@
             </button>
           </form>
         </section>
+      </aside>
+
+      <aside class="premium-card">
+        <div class="premium-header">
+          <div>
+            <div class="friends-eyebrow">Premium</div>
+            <h3>Elmas Merkezi</h3>
+          </div>
+          <div id="diamondCountBadge" class="diamond-count-badge">0</div>
+        </div>
+
+        <section class="diamond-hero">
+          <div class="diamond-icon" aria-hidden="true">◈</div>
+          <div>
+            <strong>Bakiyen</strong>
+            <div id="diamondBalance" class="diamond-balance">0 Elmas</div>
+          </div>
+        </section>
+
+        <section class="premium-section">
+          <div class="premium-section-title">Cinsiyet Filtresi</div>
+
+          <article class="premium-option-card locked">
+            <div>
+              <strong>Sadece Kız</strong>
+              <span>Premium filtre · eşleşme başına kullanılır</span>
+            </div>
+            <div class="premium-cost">9 ◈</div>
+          </article>
+
+          <article class="premium-option-card locked">
+            <div>
+              <strong>Sadece Erkek</strong>
+              <span>Premium filtre · eşleşme başına kullanılır</span>
+            </div>
+            <div class="premium-cost">5 ◈</div>
+          </article>
+        </section>
+
+        <section class="premium-note">
+          <strong>Yakında aktif</strong>
+          <p>
+            Şimdilik burada bakiye ve filtre kartları görünüyor. Sonraki adımda ödeme ve
+            elmas düşme mantığını bağlayacağız.
+          </p>
+        </section>
+
+        <button id="buyDiamondsButton" class="primary-button premium-buy-button" type="button">
+          Elmas Satın Al
+        </button>
       </aside>
     </main>
 

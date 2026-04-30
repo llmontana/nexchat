@@ -51,6 +51,9 @@ const googleLoginButton = document.getElementById("googleLoginButton");
 const usernameOverlay = document.getElementById("usernameOverlay");
 const usernameForm = document.getElementById("usernameForm");
 const usernameInput = document.getElementById("usernameInput");
+const genderInput = document.getElementById("genderInput");
+const genderGirlButton = document.getElementById("genderGirlButton");
+const genderBoyButton = document.getElementById("genderBoyButton");
 const usernameSubmitButton = document.getElementById("usernameSubmitButton");
 const usernameStatus = document.getElementById("usernameStatus");
 const friendsSearch = document.getElementById("friendsSearch");
@@ -65,6 +68,9 @@ const chatMessages = document.getElementById("chatMessages");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
 const chatSendButton = document.getElementById("chatSendButton");
+const diamondBalance = document.getElementById("diamondBalance");
+const diamondCountBadge = document.getElementById("diamondCountBadge");
+const buyDiamondsButton = document.getElementById("buyDiamondsButton");
 
 let authMode = "login";
 const googleProvider = new GoogleAuthProvider();
@@ -90,6 +96,23 @@ function setAuthStatus(text, isError = false) {
 function setUsernameStatus(text, isError = false) {
   usernameStatus.textContent = text;
   usernameStatus.classList.toggle("error", isError);
+}
+
+function updateDiamondUi(amount = 0) {
+  const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  diamondBalance.textContent = `${safeAmount} Elmas`;
+  diamondCountBadge.textContent = String(safeAmount);
+}
+
+function syncGenderSelection() {
+  const selectedGender = genderInput.value;
+  const buttons = [genderGirlButton, genderBoyButton];
+
+  for (const button of buttons) {
+    const active = button.dataset.gender === selectedGender;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  }
 }
 
 function sanitizeUsername(value) {
@@ -335,6 +358,7 @@ async function ensureUserProfile(user) {
       uid: user.uid,
       email: user.email || "",
       provider: user.providerData?.[0]?.providerId || "password",
+      diamonds: snapshot.exists() ? Number(snapshot.data().diamonds || 0) : 0,
       createdAt: snapshot.exists() ? snapshot.data().createdAt || serverTimestamp() : serverTimestamp(),
       lastLoginAt: serverTimestamp(),
       isBanned: false
@@ -465,6 +489,8 @@ function openUsernameSetup(user, suggestedName = "") {
   authOverlay.classList.add("hidden");
   usernameOverlay.classList.remove("hidden");
   usernameInput.value = suggestedName;
+  genderInput.value = "";
+  syncGenderSelection();
   setUsernameStatus("Kullanıcı adını belirle");
   setTimeout(() => usernameInput.focus(), 0);
 }
@@ -492,8 +518,11 @@ async function finalizeSignedInUser(user, existingProfile) {
   currentUserProfile = {
     uid: user.uid,
     email: user.email || "",
-    username
+    username,
+    gender: existingProfile?.gender || "",
+    diamonds: Number(existingProfile?.diamonds || 0)
   };
+  updateDiamondUi(currentUserProfile.diamonds);
   subscribeSocialCollections(user.uid);
 
   usernameOverlay.classList.add("hidden");
@@ -720,6 +749,17 @@ friendsSearch.addEventListener("input", () => {
   }, 180);
 });
 
+for (const button of [genderGirlButton, genderBoyButton]) {
+  button.addEventListener("click", () => {
+    genderInput.value = button.dataset.gender || "";
+    syncGenderSelection();
+  });
+}
+
+buyDiamondsButton.addEventListener("click", () => {
+  setAuthStatus("Elmas satin alma ekrani yakinda aktif olacak.");
+});
+
 incomingRequestsList.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) {
@@ -811,8 +851,14 @@ usernameForm.addEventListener("submit", async (event) => {
 
   const username = sanitizeUsername(usernameInput.value);
   const usernameLower = normalizeUsernameLookup(usernameInput.value);
+  const gender = genderInput.value;
   if (username.length < 3) {
     setUsernameStatus("Kullanıcı adı en az 3 karakter olmalı ve sadece harf, rakam, _ içermeli.", true);
+    return;
+  }
+
+  if (gender !== "kiz" && gender !== "erkek") {
+    setUsernameStatus("Lütfen cinsiyet seç.", true);
     return;
   }
 
@@ -824,13 +870,14 @@ usernameForm.addEventListener("submit", async (event) => {
       doc(db, "users", pendingProfileUser.uid),
       {
         username,
-        usernameLower
+        usernameLower,
+        gender
       },
       { merge: true }
     );
 
     usernameOverlay.classList.add("hidden");
-    await finalizeSignedInUser(pendingProfileUser, { username, usernameLower });
+    await finalizeSignedInUser(pendingProfileUser, { username, usernameLower, gender });
   } catch (error) {
     setUsernameStatus(error.message, true);
   } finally {
@@ -869,6 +916,8 @@ onAuthStateChanged(auth, async (user) => {
   logoutButton.disabled = true;
   authPassword.value = "";
   usernameInput.value = "";
+  genderInput.value = "";
+  syncGenderSelection();
   chatInput.value = "";
   pendingProfileUser = null;
   currentUserProfile = null;
@@ -881,6 +930,7 @@ onAuthStateChanged(auth, async (user) => {
   friendsSearch.value = "";
   clearSocialSubscriptions();
   renderFriendsPanel();
+  updateDiamondUi(0);
   window.dispatchEvent(
     new CustomEvent("auth-state", {
       detail: {
@@ -892,4 +942,6 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 updateAuthMode();
+syncGenderSelection();
 renderFriendsPanel();
+updateDiamondUi(0);

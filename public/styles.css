@@ -128,7 +128,8 @@ body {
   gap: 12px;
 }
 
-.auth-form input {
+.auth-form input,
+.auth-form select {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
@@ -138,9 +139,66 @@ body {
   outline: none;
 }
 
-.auth-form input:focus {
+.auth-form input:focus,
+.auth-form select:focus {
   border-color: rgba(79, 172, 254, 0.5);
   box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.12);
+}
+
+.gender-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gender-card {
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 20px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.gender-card:hover {
+  box-shadow: 0 16px 34px rgba(79, 172, 254, 0.12);
+}
+
+.gender-card.active {
+  background-image: linear-gradient(
+    120deg,
+    rgba(255, 95, 109, 0.2),
+    rgba(255, 195, 113, 0.18),
+    rgba(79, 172, 254, 0.2),
+    rgba(180, 101, 218, 0.22)
+  );
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 18px 36px rgba(79, 172, 254, 0.16);
+}
+
+.gender-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  font-size: 1.35rem;
+  line-height: 1;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+.gender-label {
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .auth-actions {
@@ -161,16 +219,17 @@ body {
 }
 
 .app-shell {
-  width: min(1520px, calc(100% - 32px));
+  width: min(1820px, calc(100% - 32px));
   margin: 28px auto;
   display: grid;
-  grid-template-columns: 360px minmax(620px, 1fr) 280px;
+  grid-template-columns: 360px minmax(620px, 1fr) 280px 250px;
   gap: 20px;
 }
 
 .hero-card,
 .video-card,
-.friends-card {
+.friends-card,
+.premium-card {
   background: var(--panel);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 30px;
@@ -336,6 +395,145 @@ button:disabled {
   min-height: 72vh;
   gap: 16px;
   overflow: hidden;
+}
+
+.premium-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 72vh;
+}
+
+.premium-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.premium-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.diamond-count-badge {
+  min-width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background-image: linear-gradient(140deg, #2bf1b7, #68a8ff);
+  color: white;
+  font-weight: 700;
+}
+
+.diamond-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(43, 241, 183, 0.16), transparent 30%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.diamond-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  font-size: 1.45rem;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+.diamond-hero strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.diamond-balance {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.premium-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.premium-section-title {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.premium-option-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-option-card strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.premium-option-card span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.premium-option-card.locked {
+  opacity: 0.94;
+}
+
+.premium-cost {
+  min-width: 56px;
+  padding: 9px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.premium-note {
+  margin-top: auto;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-note strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.premium-note p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.premium-buy-button {
+  width: 100%;
 }
 
 .friends-header {
@@ -819,6 +1017,10 @@ body.is-mobile .friends-card {
   box-shadow: none;
 }
 
+body.is-mobile .premium-card {
+  display: none;
+}
+
 body.is-mobile.mobile-show-friends .friends-card {
   display: flex;
 }
@@ -1090,7 +1292,8 @@ body.is-mobile.mobile-controls-collapsed .video-placeholder {
     min-height: 320px;
   }
 
-  .friends-card {
+  .friends-card,
+  .premium-card {
     min-height: auto;
   }
 }
