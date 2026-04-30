@@ -777,20 +777,43 @@ button:disabled {
 }
 
 .chat-section {
-  flex: 1;
-  min-height: 260px;
-  display: flex;
+  display: none;
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: min(420px, calc(100vw - 48px));
+  height: min(620px, calc(100vh - 48px));
+  z-index: 14;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(17, 20, 27, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+}
+
+body.chat-open .chat-section {
+  display: flex;
 }
 
 .chat-header h4 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.chat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-close-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
 }
 
 .chat-messages {
@@ -1015,6 +1038,7 @@ body.is-mobile .friends-card {
   background: #05070b;
   border: 0;
   box-shadow: none;
+  overflow-y: auto;
 }
 
 body.is-mobile .premium-card {
@@ -1028,6 +1052,7 @@ body.is-mobile .premium-card {
   background: #05070b;
   border: 0;
   box-shadow: none;
+  overflow-y: auto;
 }
 
 body.is-mobile.mobile-show-friends .friends-card {
@@ -1247,7 +1272,12 @@ body.is-mobile .friend-item-actions {
 }
 
 body.is-mobile .chat-section {
-  min-height: 320px;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  padding: 22px 16px 90px;
 }
 
 body.is-mobile .chat-form {

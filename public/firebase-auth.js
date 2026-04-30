@@ -68,6 +68,7 @@ const chatMessages = document.getElementById("chatMessages");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
 const chatSendButton = document.getElementById("chatSendButton");
+const closeChatButton = document.getElementById("closeChatButton");
 const diamondBalance = document.getElementById("diamondBalance");
 const diamondCountBadge = document.getElementById("diamondCountBadge");
 const buyDiamondsButton = document.getElementById("buyDiamondsButton");
@@ -82,6 +83,7 @@ let currentOutgoingRequests = [];
 let currentMessages = [];
 let searchResults = [];
 let selectedFriend = null;
+let isChatPanelOpen = false;
 let friendsUnsubscribe = null;
 let incomingUnsubscribe = null;
 let outgoingUnsubscribe = null;
@@ -102,6 +104,16 @@ function updateDiamondUi(amount = 0) {
   const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   diamondBalance.textContent = `${safeAmount} Elmas`;
   diamondCountBadge.textContent = String(safeAmount);
+}
+
+function openChatPanel() {
+  isChatPanelOpen = true;
+  document.body.classList.add("chat-open");
+}
+
+function closeChatPanel() {
+  isChatPanelOpen = false;
+  document.body.classList.remove("chat-open");
 }
 
 function syncGenderSelection() {
@@ -231,6 +243,7 @@ function renderRequestList(targetElement, items, emptyText, mode) {
 
 function renderChatPanel() {
   if (!selectedFriend) {
+    closeChatPanel();
     chatTitle.textContent = "Bir arkadaş seç";
     chatInput.value = "";
     chatInput.disabled = true;
@@ -399,6 +412,7 @@ function subscribeToChat(friend) {
   clearChatSubscription();
   currentMessages = [];
   selectedFriend = friend;
+  openChatPanel();
   renderChatPanel();
 
   if (!currentUserProfile || !friend?.uid) {
@@ -760,6 +774,10 @@ buyDiamondsButton.addEventListener("click", () => {
   setAuthStatus("Elmas satin alma ekrani yakinda aktif olacak.");
 });
 
+closeChatButton.addEventListener("click", () => {
+  closeChatPanel();
+});
+
 incomingRequestsList.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) {
@@ -929,6 +947,7 @@ onAuthStateChanged(auth, async (user) => {
   searchResults = [];
   friendsSearch.value = "";
   clearSocialSubscriptions();
+  closeChatPanel();
   renderFriendsPanel();
   updateDiamondUi(0);
   window.dispatchEvent(
