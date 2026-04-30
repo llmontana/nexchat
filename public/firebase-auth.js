@@ -2,7 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
-  OAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -40,11 +39,9 @@ const authStatus = document.getElementById("authStatus");
 const logoutButton = document.getElementById("logoutButton");
 const sessionBadge = document.getElementById("sessionBadge");
 const googleLoginButton = document.getElementById("googleLoginButton");
-const appleLoginButton = document.getElementById("appleLoginButton");
 
 let authMode = "login";
 const googleProvider = new GoogleAuthProvider();
-const appleProvider = new OAuthProvider("apple.com");
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -78,7 +75,6 @@ function setAuthUiBusy(busy) {
   authSubmitButton.disabled = busy;
   authModeButton.disabled = busy;
   googleLoginButton.disabled = busy;
-  appleLoginButton.disabled = busy;
 }
 
 async function signInWithProvider(provider, providerName) {
@@ -129,10 +125,6 @@ authForm.addEventListener("submit", async (event) => {
 
 googleLoginButton.addEventListener("click", async () => {
   await signInWithProvider(googleProvider, "Google");
-});
-
-appleLoginButton.addEventListener("click", async () => {
-  await signInWithProvider(appleProvider, "Apple");
 });
 
 logoutButton.addEventListener("click", async () => {
