@@ -94,6 +94,11 @@ h1 {
   flex-wrap: wrap;
 }
 
+.controls button,
+.device-controls button {
+  flex: 1 1 0;
+}
+
 button {
   font: inherit;
   border: 0;
@@ -309,13 +314,13 @@ body.is-mobile .video-panel:first-child video {
 
 body.is-mobile .hero-card {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
   z-index: 5;
-  padding: 18px;
-  border-radius: 28px;
-  gap: 14px;
+  padding: 12px;
+  border-radius: 22px;
+  gap: 10px;
   background: rgba(12, 15, 22, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(22px);
@@ -323,53 +328,53 @@ body.is-mobile .hero-card {
 
 body.is-mobile .hero-card h1,
 body.is-mobile .hero-copy,
-body.is-mobile .tips-card {
+body.is-mobile .tips-card,
+body.is-mobile .eyebrow,
+body.is-mobile .device-badge {
   display: none;
 }
 
-body.is-mobile .eyebrow {
-  font-size: 0.72rem;
-  padding: 7px 10px;
-}
-
-body.is-mobile .device-badge,
 body.is-mobile .status-badge {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  padding: 8px 11px;
 }
 
 body.is-mobile .controls,
 body.is-mobile .device-controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 body.is-mobile button {
   width: 100%;
-  min-height: 52px;
-  border-radius: 18px;
+  min-height: 42px;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
 }
 
 body.is-mobile .event-log {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 250px;
+  left: 10px;
+  right: 10px;
+  bottom: 122px;
   z-index: 4;
   min-height: 0;
-  max-height: 110px;
+  max-height: 74px;
   padding: 0;
-  mask-image: linear-gradient(180deg, transparent 0%, black 22%, black 100%);
+  pointer-events: none;
 }
 
 body.is-mobile .event-item {
-  background: rgba(12, 15, 22, 0.7);
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  background: rgba(12, 15, 22, 0.58);
   backdrop-filter: blur(16px);
 }
 
 body.is-mobile .video-placeholder {
   padding: 32px;
-  padding-bottom: 220px;
+  padding-bottom: 140px;
   align-items: flex-start;
   padding-top: 110px;
 }

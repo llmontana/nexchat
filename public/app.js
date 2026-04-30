@@ -1,6 +1,7 @@
 const socket = io();
 
 const startButton = document.getElementById("startButton");
+const findButton = document.getElementById("findButton");
 const nextButton = document.getElementById("nextButton");
 const toggleMicButton = document.getElementById("toggleMicButton");
 const toggleCameraButton = document.getElementById("toggleCameraButton");
@@ -24,6 +25,9 @@ let ignoreOffer = false;
 let politePeer = false;
 let hasRemoteDescription = false;
 let pendingIceCandidates = [];
+let mediaReady = false;
+let isMatching = false;
+let isConnected = false;
 
 function detectMobileLayout() {
   const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
@@ -46,6 +50,20 @@ function setStatus(text) {
   statusBadge.textContent = text;
 }
 
+function resumeRemotePlayback() {
+  if (!remoteVideo.srcObject) {
+    return;
+  }
+
+  remoteVideo.play().catch(() => {});
+}
+
+function syncActionButtons() {
+  startButton.disabled = mediaReady;
+  findButton.disabled = !mediaReady || isMatching || isConnected;
+  nextButton.disabled = !mediaReady || (!isMatching && !isConnected);
+}
+
 function logEvent(text) {
   const item = document.createElement("article");
   item.className = "event-item";
@@ -60,7 +78,12 @@ function setDeviceControlsEnabled(enabled) {
 }
 
 function setConnectedState(connected) {
-  nextButton.disabled = !localStream;
+  isConnected = connected;
+  if (!connected) {
+    remoteVideo.pause();
+  }
+
+  syncActionButtons();
   remotePlaceholder.classList.toggle("hidden", connected);
 }
 
@@ -80,13 +103,19 @@ async function ensureLocalMedia() {
 
   localStream = stream;
   localVideo.srcObject = stream;
+  localVideo.play().catch(() => {});
+  mediaReady = true;
   setDeviceControlsEnabled(true);
-  nextButton.disabled = false;
+  findButton.disabled = false;
+  setStatus("Kamera hazir");
+  syncActionButtons();
   return stream;
 }
 
 function resetRemoteVideo() {
   remoteVideo.srcObject = null;
+  remoteVideo.load();
+  isMatching = false;
   setConnectedState(false);
 }
 
@@ -122,16 +151,26 @@ function createPeerConnection() {
   };
 
   connection.ontrack = (event) => {
-    remoteVideo.srcObject = event.streams[0];
+    const [stream] = event.streams;
+    remoteVideo.srcObject = stream;
+    remoteVideo.muted = false;
+    remoteVideo.volume = 1;
+    remoteVideo.play().catch(() => {
+      logEvent("Karsi tarafin sesi icin ekrana dokunman gerekebilir.");
+    });
     setConnectedState(true);
     setStatus("Goruntulu baglanti kuruldu");
+    isMatching = false;
+    syncActionButtons();
   };
 
   connection.onconnectionstatechange = () => {
     const state = connection.connectionState;
 
     if (state === "failed" || state === "closed" || state === "disconnected") {
+      isMatching = false;
       resetRemoteVideo();
+      syncActionButtons();
     }
   };
 
@@ -143,8 +182,10 @@ async function requestPartner() {
   await ensureLocalMedia();
   cleanupPeerConnection();
   politePeer = false;
+  isMatching = true;
   setStatus("Partner araniyor...");
   logEvent("Yeni bir goruntulu partner araniyor.");
+  syncActionButtons();
   socket.emit("find-partner");
 }
 
@@ -166,25 +207,41 @@ async function flushPendingIceCandidates() {
 }
 
 startButton.addEventListener("click", async () => {
-  startButton.disabled = true;
-
   try {
-    await requestPartner();
+    await ensureLocalMedia();
+    logEvent("Kamera ve mikrofon hazir. Simdi sohbeti baslatabilirsin.");
   } catch (error) {
-    startButton.disabled = false;
+    mediaReady = false;
+    syncActionButtons();
     setStatus("Kamera izni gerekiyor");
     logEvent(`Kamera veya mikrofon acilamadi: ${error.message}`);
   }
 });
 
+findButton.addEventListener("click", async () => {
+  if (!mediaReady) {
+    return;
+  }
+
+  try {
+    await requestPartner();
+  } catch (error) {
+    isMatching = false;
+    syncActionButtons();
+    logEvent(`Eslesme baslatilamadi: ${error.message}`);
+  }
+});
+
 nextButton.addEventListener("click", async () => {
-  if (!localStream) {
+  if (!localStream || (!isMatching && !isConnected)) {
     return;
   }
 
   cleanupPeerConnection();
+  isMatching = true;
   setStatus("Yeni partner araniyor...");
   logEvent("Eslesme sonlandirildi. Yeni biri araniyor.");
+  syncActionButtons();
   socket.emit("next-partner");
 });
 
@@ -224,8 +281,10 @@ socket.on("status", (text) => {
 });
 
 socket.on("waiting", () => {
+  isMatching = true;
   setStatus("Bekleme sirasindasin");
   logEvent("Eslesme kuyrugundasin.");
+  syncActionButtons();
 });
 
 socket.on("partner-found", async ({ initiator }) => {
@@ -250,8 +309,10 @@ socket.on("partner-found", async ({ initiator }) => {
 
 socket.on("partner-left", () => {
   cleanupPeerConnection();
+  isMatching = false;
   setStatus("Partner ayrildi");
-  logEvent("Partner ayrildi. Siradaki eslesme bekleniyor.");
+  logEvent("Partner ayrildi. Tekrar baslatip yeni eslesme arayabilirsin.");
+  syncActionButtons();
 });
 
 socket.on("webrtc-offer", async (offer) => {
@@ -314,4 +375,6 @@ socket.on("webrtc-ice-candidate", async (candidate) => {
 });
 
 applyDeviceMode();
+syncActionButtons();
 window.addEventListener("resize", applyDeviceMode);
+window.addEventListener("pointerdown", resumeRemotePlayback);
