@@ -161,15 +161,16 @@ body {
 }
 
 .app-shell {
-  width: min(1240px, calc(100% - 32px));
+  width: min(1520px, calc(100% - 32px));
   margin: 28px auto;
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 360px minmax(620px, 1fr) 280px;
   gap: 20px;
 }
 
 .hero-card,
-.video-card {
+.video-card,
+.friends-card {
   background: var(--panel);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 30px;
@@ -326,6 +327,89 @@ button:disabled {
   flex-direction: column;
   gap: 18px;
   position: relative;
+}
+
+.friends-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 72vh;
+  gap: 16px;
+}
+
+.friends-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.friends-eyebrow {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.friends-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.friends-count {
+  min-width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  font-weight: 700;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+.friends-search input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  outline: none;
+}
+
+.friends-search input:focus {
+  border-color: rgba(79, 172, 254, 0.5);
+  box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.12);
+}
+
+.friends-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.friend-empty {
+  margin: auto 0;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.friend-empty strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.friend-empty p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .video-grid {
@@ -611,6 +695,10 @@ body.is-mobile.mobile-controls-collapsed .video-placeholder {
 
   .video-panel {
     min-height: 320px;
+  }
+
+  .friends-card {
+    min-height: auto;
   }
 }
 

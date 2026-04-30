@@ -131,6 +131,35 @@
 
         <div id="eventLog" class="event-log" aria-live="polite"></div>
       </section>
+
+      <aside class="friends-card">
+        <div class="friends-header">
+          <div>
+            <div class="friends-eyebrow">Sosyal</div>
+            <h3>Arkadaş Listesi</h3>
+          </div>
+          <div class="friends-count">0</div>
+        </div>
+
+        <div class="friends-search">
+          <input
+            id="friendsSearch"
+            type="text"
+            placeholder="Arkadaş ara"
+            autocomplete="off"
+          />
+        </div>
+
+        <div id="friendsList" class="friends-list">
+          <article class="friend-empty">
+            <strong>Henüz arkadaş yok</strong>
+            <p>
+              Burada eklediğin kullanıcılar görünecek. İleride hızlıca tekrar bağlanmak için
+              bu alanı kullanabilirsin.
+            </p>
+          </article>
+        </div>
+      </aside>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
