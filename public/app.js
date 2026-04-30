@@ -11,6 +11,7 @@ const remotePlaceholder = document.getElementById("remotePlaceholder");
 const statusBadge = document.getElementById("statusBadge");
 const eventLog = document.getElementById("eventLog");
 const deviceBadge = document.getElementById("deviceBadge");
+const mobileDrawerToggle = document.getElementById("mobileDrawerToggle");
 
 const rtcConfig = {
   iceServers: [
@@ -28,6 +29,7 @@ let pendingIceCandidates = [];
 let mediaReady = false;
 let isMatching = false;
 let isConnected = false;
+let mobileControlsCollapsed = false;
 
 function detectMobileLayout() {
   const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
@@ -43,7 +45,14 @@ function applyDeviceMode() {
   const isMobile = detectMobileLayout();
   document.body.classList.toggle("is-mobile", isMobile);
   document.body.classList.toggle("is-desktop", !isMobile);
+  document.body.classList.toggle("mobile-controls-collapsed", isMobile && mobileControlsCollapsed);
   deviceBadge.textContent = isMobile ? "Mobile Mode" : "Desktop Mode";
+
+  if (!isMobile) {
+    mobileControlsCollapsed = false;
+    mobileDrawerToggle.setAttribute("aria-expanded", "true");
+    mobileDrawerToggle.setAttribute("aria-label", "Kontrolleri gizle");
+  }
 }
 
 function setStatus(text) {
@@ -56,6 +65,18 @@ function resumeRemotePlayback() {
   }
 
   remoteVideo.play().catch(() => {});
+}
+
+function syncMobileDrawerState() {
+  const isMobile = document.body.classList.contains("is-mobile");
+  const collapsed = isMobile && mobileControlsCollapsed;
+
+  document.body.classList.toggle("mobile-controls-collapsed", collapsed);
+  mobileDrawerToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  mobileDrawerToggle.setAttribute(
+    "aria-label",
+    collapsed ? "Kontrolleri goster" : "Kontrolleri gizle"
+  );
 }
 
 function syncActionButtons() {
@@ -275,6 +296,15 @@ toggleCameraButton.addEventListener("click", () => {
   logEvent(videoTrack.enabled ? "Kamera acildi." : "Kamera kapatildi.");
 });
 
+mobileDrawerToggle.addEventListener("click", () => {
+  if (!document.body.classList.contains("is-mobile")) {
+    return;
+  }
+
+  mobileControlsCollapsed = !mobileControlsCollapsed;
+  syncMobileDrawerState();
+});
+
 socket.on("status", (text) => {
   setStatus(text);
   logEvent(text);
@@ -375,6 +405,7 @@ socket.on("webrtc-ice-candidate", async (candidate) => {
 });
 
 applyDeviceMode();
+syncMobileDrawerState();
 syncActionButtons();
 window.addEventListener("resize", applyDeviceMode);
 window.addEventListener("pointerdown", resumeRemotePlayback);

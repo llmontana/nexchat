@@ -99,6 +99,10 @@ h1 {
   flex: 1 1 0;
 }
 
+.mobile-drawer-toggle {
+  display: none;
+}
+
 button {
   font: inherit;
   border: 0;
@@ -324,6 +328,33 @@ body.is-mobile .hero-card {
   background: rgba(12, 15, 22, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(22px);
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+body.is-mobile .mobile-drawer-toggle {
+  position: absolute;
+  left: 50%;
+  top: -18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 26px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(12, 15, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.mobile-drawer-arrow {
+  width: 10px;
+  height: 10px;
+  border-left: 2px solid white;
+  border-top: 2px solid white;
+  transform: rotate(45deg) translate(1px, 1px);
+  transition: transform 220ms ease;
 }
 
 body.is-mobile .hero-card h1,
@@ -378,6 +409,22 @@ body.is-mobile .video-placeholder {
   padding-bottom: 110px;
   align-items: flex-start;
   padding-top: 110px;
+}
+
+body.is-mobile.mobile-controls-collapsed .hero-card {
+  transform: translateY(calc(100% - 22px));
+}
+
+body.is-mobile.mobile-controls-collapsed .mobile-drawer-arrow {
+  transform: rotate(225deg) translate(0, 0);
+}
+
+body.is-mobile.mobile-controls-collapsed .event-log {
+  bottom: 40px;
+}
+
+body.is-mobile.mobile-controls-collapsed .video-placeholder {
+  padding-bottom: 56px;
 }
 
 @keyframes fade-up {
