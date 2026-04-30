@@ -19,6 +19,8 @@ const logoutButton = document.getElementById("logoutButton");
 const mobileHomeTab = document.getElementById("mobileHomeTab");
 const mobileFriendsTab = document.getElementById("mobileFriendsTab");
 const mobilePremiumTab = document.getElementById("mobilePremiumTab");
+const premiumGirlButton = document.getElementById("premiumGirlButton");
+const premiumBoyButton = document.getElementById("premiumBoyButton");
 
 const rtcConfig = {
   iceServers: [
@@ -42,6 +44,7 @@ let isAuthenticated = false;
 let currentUserProfile = null;
 let currentPartnerProfile = null;
 let mobileActiveTab = "home";
+let activeMatchFilter = "any";
 
 function setLocalLabel(username) {
   localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
@@ -146,6 +149,16 @@ function syncActionButtons() {
   reportButton.disabled = !isAuthenticated || !isConnected || reportInFlight;
   logoutButton.disabled = !isAuthenticated;
   addFriendButton.disabled = !isAuthenticated || !currentPartnerProfile?.uid;
+  premiumGirlButton.disabled =
+    !isAuthenticated ||
+    isMatching ||
+    isConnected ||
+    Number(currentUserProfile?.diamonds || 0) < 9;
+  premiumBoyButton.disabled =
+    !isAuthenticated ||
+    isMatching ||
+    isConnected ||
+    Number(currentUserProfile?.diamonds || 0) < 5;
 }
 
 function logEvent(text) {
@@ -226,6 +239,7 @@ function resetRemoteVideo() {
   remoteVideo.srcObject = null;
   remoteVideo.load();
   isMatching = false;
+  activeMatchFilter = "any";
   currentPartnerProfile = null;
   setRemoteLabel("");
   setConnectedState(false);
@@ -314,15 +328,22 @@ function createPeerConnection() {
   return connection;
 }
 
-async function requestPartner() {
+async function requestPartner(filter = "any") {
   await ensureLocalMedia();
   cleanupPeerConnection();
   politePeer = false;
   isMatching = true;
-  setStatus("Partner aranıyor...");
-  logEvent("Yeni bir görüntülü partner aranıyor.");
+  activeMatchFilter = filter;
+  setStatus(filter === "any" ? "Partner aranıyor..." : "Premium eşleşme aranıyor...");
+  logEvent(
+    filter === "any"
+      ? "Yeni bir görüntülü partner aranıyor."
+      : `${filter === "kiz" ? "Sadece kız" : "Sadece erkek"} filtresiyle eşleşme aranıyor.`
+  );
   syncActionButtons();
-  socket.emit("find-partner");
+  socket.emit("find-partner", {
+    genderFilter: filter
+  });
 }
 
 async function flushPendingIceCandidates() {
@@ -372,6 +393,26 @@ findButton.addEventListener("click", async () => {
     logEvent(`Eşleşme başlatılamadı: ${error.message}`);
   }
 });
+
+async function startPremiumMatch(targetGender) {
+  if (!isAuthenticated) {
+    setStatus("Önce giriş yapman gerekiyor");
+    return;
+  }
+
+  try {
+    await ensureLocalMedia();
+    const result = await window.nexchatPremium.consumeGenderFilter(targetGender);
+    await requestPartner(targetGender);
+    logEvent(
+      `${targetGender === "kiz" ? "Sadece kız" : "Sadece erkek"} filtresi için ${result.cost} elmas kullanıldı.`
+    );
+  } catch (error) {
+    setStatus("Premium filtre kullanılamadı");
+    logEvent(error.message || "Premium filtre başlatılamadı.");
+    syncActionButtons();
+  }
+}
 
 nextButton.addEventListener("click", async () => {
   if (!isAuthenticated || !localStream || (!isMatching && !isConnected)) {
@@ -438,6 +479,14 @@ mobileFriendsTab.addEventListener("click", () => {
 mobilePremiumTab.addEventListener("click", () => {
   mobileActiveTab = "premium";
   syncMobileTabs();
+});
+
+premiumGirlButton.addEventListener("click", async () => {
+  await startPremiumMatch("kiz");
+});
+
+premiumBoyButton.addEventListener("click", async () => {
+  await startPremiumMatch("erkek");
 });
 
 reportButton.addEventListener("click", () => {
@@ -570,11 +619,22 @@ window.addEventListener("auth-state", ({ detail }) => {
   syncActionButtons();
 });
 
+window.addEventListener("user-profile-updated", ({ detail }) => {
+  if (!detail?.user) {
+    return;
+  }
+
+  currentUserProfile = detail.user;
+  setLocalLabel(detail.user.username || "");
+  syncActionButtons();
+});
+
 socket.on("authentication-result", ({ ok, message }) => {
   if (ok && currentUserProfile) {
     socket.emit("user-profile", {
       uid: currentUserProfile.uid || "",
-      username: currentUserProfile.username || ""
+      username: currentUserProfile.username || "",
+      gender: currentUserProfile.gender || ""
     });
     return;
   }

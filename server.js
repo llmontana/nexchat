@@ -15,11 +15,17 @@ const SEXUAL_SEVERITY_THRESHOLD = Number(process.env.SEXUAL_SEVERITY_THRESHOLD |
 const BAN_DURATION_MS = Number(process.env.BAN_DURATION_MS || 24 * 60 * 60 * 1000);
 const FIREBASE_WEB_API_KEY =
   process.env.FIREBASE_WEB_API_KEY || "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs";
-let waitingSocketId = null;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr72@gmail.com")
+  .split(",")
+  .map((item) => item.trim().toLocaleLowerCase("tr-TR"))
+  .filter(Boolean);
+const waitingQueue = [];
 
 const peers = new Map();
 const socketProfiles = new Map();
 const authenticatedSockets = new Map();
+const recentUserSessions = new Map();
+const matchPreferences = new Map();
 const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"]);
 const bannedIps = new Map();
 
@@ -70,6 +76,22 @@ function banIp(ip, reason) {
     reason,
     expiresAt: Date.now() + BAN_DURATION_MS
   });
+}
+
+function unbanIp(ip) {
+  if (!ip) {
+    return false;
+  }
+
+  return bannedIps.delete(ip);
+}
+
+function isAdminEmail(email) {
+  if (typeof email !== "string") {
+    return false;
+  }
+
+  return ADMIN_EMAILS.includes(email.trim().toLocaleLowerCase("tr-TR"));
 }
 
 async function analyzeImageForNudity(base64Image) {
@@ -144,6 +166,21 @@ async function verifyFirebaseIdToken(idToken) {
   };
 }
 
+async function verifyAdminRequest(request) {
+  const authHeader = request.headers.authorization || "";
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    throw new Error("Yetkili kimlik bilgisi bulunamadi.");
+  }
+
+  const authUser = await verifyFirebaseIdToken(match[1]);
+  if (!isAdminEmail(authUser.email)) {
+    throw new Error("Bu islem icin admin yetkisi gerekiyor.");
+  }
+
+  return authUser;
+}
+
 app.use((request, response, next) => {
   const ip = getRequestIp(request);
   const banRecord = getBanRecord(ip);
@@ -159,6 +196,8 @@ app.use((request, response, next) => {
 function pairSockets(firstId, secondId) {
   peers.set(firstId, secondId);
   peers.set(secondId, firstId);
+  matchPreferences.delete(firstId);
+  matchPreferences.delete(secondId);
 
   io.to(firstId).emit("partner-found", {
     initiator: true,
@@ -187,30 +226,38 @@ function clearPair(socketId) {
 }
 
 function enqueueSocket(socket) {
-  if (waitingSocketId === socket.id) {
+  if (waitingQueue.includes(socket.id)) {
     return;
   }
 
-  if (waitingSocketId && waitingSocketId !== socket.id) {
-    const otherSocket = io.sockets.sockets.get(waitingSocketId);
-
-    if (otherSocket) {
-      const firstId = waitingSocketId;
-      waitingSocketId = null;
-      pairSockets(firstId, socket.id);
-      return;
+  for (let index = 0; index < waitingQueue.length; index += 1) {
+    const queuedSocketId = waitingQueue[index];
+    if (queuedSocketId === socket.id) {
+      continue;
     }
 
-    waitingSocketId = null;
+    const otherSocket = io.sockets.sockets.get(queuedSocketId);
+    if (!otherSocket) {
+      waitingQueue.splice(index, 1);
+      index -= 1;
+      continue;
+    }
+
+    if (canPairSockets(queuedSocketId, socket.id)) {
+      waitingQueue.splice(index, 1);
+      pairSockets(queuedSocketId, socket.id);
+      return;
+    }
   }
 
-  waitingSocketId = socket.id;
+  waitingQueue.push(socket.id);
   socket.emit("waiting");
 }
 
 function removeFromQueue(socketId) {
-  if (waitingSocketId === socketId) {
-    waitingSocketId = null;
+  const queueIndex = waitingQueue.indexOf(socketId);
+  if (queueIndex >= 0) {
+    waitingQueue.splice(queueIndex, 1);
   }
 }
 
@@ -248,7 +295,160 @@ function isSocketAuthenticated(socketId) {
   return authenticatedSockets.has(socketId);
 }
 
+function getBanList() {
+  const now = Date.now();
+  return [...bannedIps.entries()]
+    .map(([ip, record]) => ({
+      ip,
+      reason: record.reason || "Belirtilmedi",
+      expiresAt: record.expiresAt
+    }))
+    .filter((item) => item.expiresAt > now)
+    .sort((a, b) => b.expiresAt - a.expiresAt);
+}
+
+function getRecentSessionList() {
+  return [...recentUserSessions.values()].sort((a, b) => b.lastSeen - a.lastSeen);
+}
+
+function normalizeGenderFilter(value) {
+  return value === "kiz" || value === "erkek" ? value : "any";
+}
+
+function canPairSockets(firstSocketId, secondSocketId) {
+  const firstProfile = socketProfiles.get(firstSocketId);
+  const secondProfile = socketProfiles.get(secondSocketId);
+  if (!firstProfile || !secondProfile) {
+    return false;
+  }
+
+  const firstPreference = matchPreferences.get(firstSocketId) || "any";
+  const secondPreference = matchPreferences.get(secondSocketId) || "any";
+  const firstGender = firstProfile.gender || "";
+  const secondGender = secondProfile.gender || "";
+
+  if (firstPreference !== "any" && secondGender !== firstPreference) {
+    return false;
+  }
+
+  if (secondPreference !== "any" && firstGender !== secondPreference) {
+    return false;
+  }
+
+  return true;
+}
+
 app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/api/admin/bans", async (request, response) => {
+  try {
+    await verifyAdminRequest(request);
+    response.json({
+      bans: getBanList()
+    });
+  } catch (error) {
+    response.status(403).json({
+      message: error.message
+    });
+  }
+});
+
+app.post("/api/admin/bans", async (request, response) => {
+  try {
+    const adminUser = await verifyAdminRequest(request);
+    const ip = typeof request.body?.ip === "string" ? request.body.ip.trim() : "";
+    const reason =
+      typeof request.body?.reason === "string" && request.body.reason.trim()
+        ? request.body.reason.trim().slice(0, 180)
+        : `Admin ban: ${adminUser.email}`;
+
+    if (!ip) {
+      response.status(400).json({
+        message: "Gecerli bir IP gerekli."
+      });
+      return;
+    }
+
+    banIp(ip, reason);
+    response.json({
+      ok: true,
+      bans: getBanList()
+    });
+  } catch (error) {
+    response.status(403).json({
+      message: error.message
+    });
+  }
+});
+
+app.delete("/api/admin/bans/:ip", async (request, response) => {
+  try {
+    await verifyAdminRequest(request);
+    const ip = typeof request.params.ip === "string" ? request.params.ip.trim() : "";
+    if (!ip) {
+      response.status(400).json({
+        message: "Gecerli bir IP gerekli."
+      });
+      return;
+    }
+
+    unbanIp(ip);
+    response.json({
+      ok: true,
+      bans: getBanList()
+    });
+  } catch (error) {
+    response.status(403).json({
+      message: error.message
+    });
+  }
+});
+
+app.get("/api/admin/recent-sessions", async (request, response) => {
+  try {
+    await verifyAdminRequest(request);
+    response.json({
+      sessions: getRecentSessionList()
+    });
+  } catch (error) {
+    response.status(403).json({
+      message: error.message
+    });
+  }
+});
+
+app.post("/api/session-sync", async (request, response) => {
+  try {
+    const authHeader = request.headers.authorization || "";
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!match) {
+      response.status(401).json({
+        message: "Kimlik dogrulamasi gerekli."
+      });
+      return;
+    }
+
+    const authUser = await verifyFirebaseIdToken(match[1]);
+    const username =
+      typeof request.body?.username === "string" ? request.body.username.trim().slice(0, 20) : "";
+
+    recentUserSessions.set(authUser.uid, {
+      uid: authUser.uid,
+      username,
+      email: authUser.email || "",
+      ip: getRequestIp(request),
+      lastSeen: Date.now()
+    });
+
+    response.json({
+      ok: true
+    });
+  } catch (error) {
+    response.status(401).json({
+      message: error.message
+    });
+  }
+});
 
 io.use((socket, next) => {
   const ip = getSocketIp(socket);
@@ -294,6 +494,7 @@ io.on("connection", (socket) => {
   socket.on("sign-out", () => {
     authenticatedSockets.delete(socket.id);
     socketProfiles.delete(socket.id);
+    matchPreferences.delete(socket.id);
     leaveConversation(socket, false);
   });
 
@@ -306,6 +507,8 @@ io.on("connection", (socket) => {
     const username =
       typeof profile.username === "string" ? profile.username.trim().slice(0, 20) : "";
     const uid = typeof profile.uid === "string" ? profile.uid.trim().slice(0, 128) : "";
+    const gender =
+      profile.gender === "kiz" || profile.gender === "erkek" ? profile.gender : "";
     if (!uid || uid !== authUser.uid) {
       socket.emit("status", "Profil dogrulamasi basarisiz.");
       return;
@@ -313,7 +516,16 @@ io.on("connection", (socket) => {
 
     socketProfiles.set(socket.id, {
       username,
-      uid
+      uid,
+      gender
+    });
+
+    recentUserSessions.set(uid, {
+      uid,
+      username,
+      email: authUser.email || "",
+      ip: getSocketIp(socket),
+      lastSeen: Date.now()
     });
 
     const partnerId = getPartnerId(socket.id);
@@ -322,7 +534,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("find-partner", () => {
+  socket.on("find-partner", ({ genderFilter } = {}) => {
     if (!isSocketAuthenticated(socket.id)) {
       socket.emit("status", "Eslesmek icin once giris yapman gerekiyor.");
       return;
@@ -338,6 +550,7 @@ io.on("connection", (socket) => {
       return;
     }
 
+    matchPreferences.set(socket.id, normalizeGenderFilter(genderFilter));
     enqueueSocket(socket);
   });
 
@@ -414,6 +627,7 @@ io.on("connection", (socket) => {
     leaveConversation(socket, false);
     socketProfiles.delete(socket.id);
     authenticatedSockets.delete(socket.id);
+    matchPreferences.delete(socket.id);
   });
 });
 

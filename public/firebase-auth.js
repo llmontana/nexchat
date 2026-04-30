@@ -18,11 +18,13 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   where,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { isAdminEmail } from "./admin-config.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs",
@@ -72,6 +74,8 @@ const closeChatButton = document.getElementById("closeChatButton");
 const diamondBalance = document.getElementById("diamondBalance");
 const diamondCountBadge = document.getElementById("diamondCountBadge");
 const buyDiamondsButton = document.getElementById("buyDiamondsButton");
+const premiumGirlButton = document.getElementById("premiumGirlButton");
+const premiumBoyButton = document.getElementById("premiumBoyButton");
 
 let authMode = "login";
 const googleProvider = new GoogleAuthProvider();
@@ -89,7 +93,13 @@ let incomingUnsubscribe = null;
 let outgoingUnsubscribe = null;
 let chatUnsubscribe = null;
 let searchTimeoutId = null;
+const ADMIN_PANEL_PATH = "/admin.html";
 const mutualRequestResolutions = new Set();
+let currentUserProfileUnsubscribe = null;
+const PREMIUM_FILTER_COSTS = {
+  kiz: 9,
+  erkek: 5
+};
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -105,6 +115,12 @@ function updateDiamondUi(amount = 0) {
   const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   diamondBalance.textContent = `${safeAmount} Elmas`;
   diamondCountBadge.textContent = String(safeAmount);
+  if (premiumGirlButton) {
+    premiumGirlButton.disabled = safeAmount < PREMIUM_FILTER_COSTS.kiz;
+  }
+  if (premiumBoyButton) {
+    premiumBoyButton.disabled = safeAmount < PREMIUM_FILTER_COSTS.erkek;
+  }
 }
 
 function openChatPanel() {
@@ -171,6 +187,20 @@ function formatChatTime(value) {
   }).format(date);
 }
 
+async function syncSessionPresence(user, username = "") {
+  const idToken = await user.getIdToken();
+  await fetch("/api/session-sync", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`
+    },
+    body: JSON.stringify({
+      username
+    })
+  });
+}
+
 function getConversationId(uidA, uidB) {
   return [uidA, uidB].sort().join("__");
 }
@@ -199,6 +229,20 @@ function setAuthUiBusy(busy) {
   authSubmitButton.disabled = busy;
   authModeButton.disabled = busy;
   googleLoginButton.disabled = busy;
+}
+
+function notifyUserProfileUpdated() {
+  if (!currentUserProfile) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("user-profile-updated", {
+      detail: {
+        user: currentUserProfile
+      }
+    })
+  );
 }
 
 function updateAuthMode() {
@@ -365,17 +409,20 @@ function renderFriendsPanel() {
 async function ensureUserProfile(user) {
   const userRef = doc(db, "users", user.uid);
   const snapshot = await getDoc(userRef);
+  const email = user.email || "";
+  const adminByEmail = isAdminEmail(email);
 
   await setDoc(
     userRef,
     {
       uid: user.uid,
-      email: user.email || "",
+      email,
       provider: user.providerData?.[0]?.providerId || "password",
       diamonds: snapshot.exists() ? Number(snapshot.data().diamonds || 0) : 0,
       createdAt: snapshot.exists() ? snapshot.data().createdAt || serverTimestamp() : serverTimestamp(),
       lastLoginAt: serverTimestamp(),
-      isBanned: false
+      isBanned: false,
+      isAdmin: snapshot.exists() ? Boolean(snapshot.data().isAdmin || adminByEmail) : adminByEmail
     },
     { merge: true }
   );
@@ -436,6 +483,13 @@ function clearSocialSubscriptions() {
   }
 
   clearChatSubscription();
+}
+
+function clearCurrentUserProfileSubscription() {
+  if (currentUserProfileUnsubscribe) {
+    currentUserProfileUnsubscribe();
+    currentUserProfileUnsubscribe = null;
+  }
 }
 
 function subscribeToChat(friend) {
@@ -566,10 +620,41 @@ async function finalizeSignedInUser(user, existingProfile) {
     email: user.email || "",
     username,
     gender: existingProfile?.gender || "",
-    diamonds: Number(existingProfile?.diamonds || 0)
+    diamonds: Number(existingProfile?.diamonds || 0),
+    isAdmin: Boolean(existingProfile?.isAdmin || isAdminEmail(user.email || ""))
   };
+
+  if (currentUserProfile.isAdmin && !window.location.pathname.endsWith(ADMIN_PANEL_PATH)) {
+    window.location.replace(ADMIN_PANEL_PATH);
+    return;
+  }
+
+  try {
+    await syncSessionPresence(user, username);
+  } catch (error) {
+    console.error("Session sync başarısız:", error);
+  }
+
   updateDiamondUi(currentUserProfile.diamonds);
   subscribeSocialCollections(user.uid);
+  clearCurrentUserProfileSubscription();
+  currentUserProfileUnsubscribe = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
+    if (!snapshot.exists() || !currentUserProfile) {
+      return;
+    }
+
+    const data = snapshot.data();
+    currentUserProfile = {
+      ...currentUserProfile,
+      username: data.username || currentUserProfile.username,
+      gender: data.gender || currentUserProfile.gender,
+      diamonds: Number(data.diamonds || 0),
+      isAdmin: Boolean(data.isAdmin || currentUserProfile.isAdmin)
+    };
+    sessionBadge.textContent = `${currentUserProfile.username} @ ${user.email || "aktif"}`;
+    updateDiamondUi(currentUserProfile.diamonds);
+    notifyUserProfileUpdated();
+  });
 
   usernameOverlay.classList.add("hidden");
   authOverlay.classList.add("hidden");
@@ -585,6 +670,7 @@ async function finalizeSignedInUser(user, existingProfile) {
       }
     })
   );
+  notifyUserProfileUpdated();
 }
 
 async function signInWithProvider(provider, providerName) {
@@ -745,8 +831,55 @@ async function sendChatMessage() {
   }
 }
 
+async function consumePremiumGenderFilter(targetGender) {
+  if (!currentUserProfile?.uid) {
+    throw new Error("Premium filtre için önce giriş yap.");
+  }
+
+  const cost = PREMIUM_FILTER_COSTS[targetGender];
+  if (!cost) {
+    throw new Error("Geçersiz premium filtre.");
+  }
+
+  const userRef = doc(db, "users", currentUserProfile.uid);
+  const remainingDiamonds = await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(userRef);
+    if (!snapshot.exists()) {
+      throw new Error("Kullanıcı profili bulunamadı.");
+    }
+
+    const currentDiamonds = Number(snapshot.data().diamonds || 0);
+    if (currentDiamonds < cost) {
+      throw new Error("Bu filtre için yeterli elmasın yok.");
+    }
+
+    const nextDiamonds = currentDiamonds - cost;
+    transaction.update(userRef, {
+      diamonds: nextDiamonds
+    });
+
+    return nextDiamonds;
+  });
+
+  currentUserProfile = {
+    ...currentUserProfile,
+    diamonds: remainingDiamonds
+  };
+  updateDiamondUi(remainingDiamonds);
+  notifyUserProfileUpdated();
+
+  return {
+    cost,
+    remainingDiamonds
+  };
+}
+
 window.nexchatSocial = {
   sendFriendRequest
+};
+
+window.nexchatPremium = {
+  consumeGenderFilter: consumePremiumGenderFilter
 };
 
 authModeButton.addEventListener("click", () => {
@@ -976,6 +1109,7 @@ onAuthStateChanged(auth, async (user) => {
   chatInput.value = "";
   pendingProfileUser = null;
   currentUserProfile = null;
+  clearCurrentUserProfileSubscription();
   currentFriends = [];
   currentIncomingRequests = [];
   currentOutgoingRequests = [];

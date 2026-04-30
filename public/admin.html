@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEXCHAT Admin Panel</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="admin-page">
+    <section id="adminAuthOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <div class="auth-badge">Admin Girişi</div>
+        <h2>Nexchat Admin Paneli</h2>
+        <p class="auth-copy">
+          Admin hesabınla giriş yap. Yetkili hesapta panel otomatik olarak açılır.
+        </p>
+
+        <div class="social-auth">
+          <button id="adminGoogleLoginButton" class="social-button google-button" type="button">
+            Google ile Devam Et
+          </button>
+        </div>
+
+        <div class="auth-divider">
+          <span>E-posta ile devam et</span>
+        </div>
+
+        <form id="adminAuthForm" class="auth-form">
+          <input id="adminEmail" type="email" placeholder="E-posta" autocomplete="email" required />
+          <input
+            id="adminPassword"
+            type="password"
+            placeholder="Şifre"
+            autocomplete="current-password"
+            minlength="6"
+            required
+          />
+          <button id="adminAuthSubmitButton" class="primary-button" type="submit">Giriş Yap</button>
+        </form>
+
+        <div id="adminAuthStatus" class="auth-status">Hazır</div>
+      </div>
+    </section>
+
+    <main class="admin-shell">
+      <aside class="admin-sidebar">
+        <div class="admin-brand-card">
+          <div class="eyebrow">Nexchat Admin</div>
+          <h1>Kontrol merkezi</h1>
+          <p>
+            Kullanıcı hareketlerini takip et, temel istatistikleri gör ve sistemi tek yerden izle.
+          </p>
+        </div>
+
+        <div class="admin-account-card">
+          <div class="friends-eyebrow">Oturum</div>
+          <strong id="adminSessionName">Hazır</strong>
+          <span id="adminSessionEmail">Yetkili hesap bekleniyor</span>
+          <button id="adminLogoutButton" class="ghost-button" type="button" disabled>Çıkış Yap</button>
+        </div>
+
+        <div class="admin-side-note">
+          <strong>Not</strong>
+          <p>
+            Bu panel şu an denetim ve kullanıcı görünümü için hazırlandı. Moderasyon ve elmas
+            yönetimi sonraki adımda bağlanabilir.
+          </p>
+        </div>
+      </aside>
+
+      <section class="admin-main">
+        <div class="admin-header">
+          <div>
+            <div class="friends-eyebrow">Dashboard</div>
+            <h2>Sistem Özeti</h2>
+          </div>
+          <div id="adminStatusBadge" class="status-badge">Veri bekleniyor</div>
+        </div>
+
+        <section class="admin-stats-grid">
+          <article class="admin-stat-card">
+            <span>Toplam Kullanıcı</span>
+            <strong id="statTotalUsers">0</strong>
+          </article>
+          <article class="admin-stat-card admin-stat-card-pink">
+            <span>Kız Profil</span>
+            <strong id="statGirls">0</strong>
+          </article>
+          <article class="admin-stat-card admin-stat-card-blue">
+            <span>Erkek Profil</span>
+            <strong id="statBoys">0</strong>
+          </article>
+          <article class="admin-stat-card admin-stat-card-green">
+            <span>Toplam Elmas</span>
+            <strong id="statDiamonds">0</strong>
+          </article>
+        </section>
+
+        <section class="admin-grid">
+          <article class="admin-panel-card">
+            <div class="admin-panel-head">
+              <div>
+                <div class="friends-eyebrow">Kullanıcılar</div>
+                <h3>Hızlı Arama</h3>
+              </div>
+            </div>
+
+            <div class="admin-search-row">
+              <input
+                id="adminUserSearch"
+                type="text"
+                placeholder="Kullanıcı adı veya e-posta ara"
+                autocomplete="off"
+              />
+            </div>
+
+            <div id="adminUsersList" class="admin-user-list"></div>
+          </article>
+
+          <div class="admin-column-stack">
+            <article class="admin-panel-card">
+              <div class="admin-panel-head">
+                <div>
+                  <div class="friends-eyebrow">Son Girişler</div>
+                  <h3>Yeni Hareketler</h3>
+                </div>
+              </div>
+
+              <div id="adminRecentList" class="admin-recent-list"></div>
+            </article>
+
+            <article class="admin-panel-card">
+              <div class="admin-panel-head">
+                <div>
+                  <div class="friends-eyebrow">Ban Listesi</div>
+                  <h3>IP Engelleri</h3>
+                </div>
+              </div>
+
+              <div id="adminBanList" class="admin-ban-list"></div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/admin.js"></script>
+  </body>
+</html>
