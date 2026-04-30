@@ -221,6 +221,10 @@ h1 {
   font-size: 0.84rem;
 }
 
+body.is-authenticated #sessionBadge {
+  display: none;
+}
+
 .controls,
 .device-controls {
   display: flex;

@@ -238,6 +238,7 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
       const existingProfile = await ensureUserProfile(user);
+      document.body.classList.add("is-authenticated");
       await finalizeSignedInUser(user, existingProfile);
     } catch (error) {
       setAuthStatus(error.message, true);
@@ -248,6 +249,7 @@ onAuthStateChanged(auth, async (user) => {
 
   authOverlay.classList.remove("hidden");
   usernameOverlay.classList.add("hidden");
+  document.body.classList.remove("is-authenticated");
   sessionBadge.textContent = "Giris yapilmadi";
   logoutButton.disabled = true;
   authPassword.value = "";
