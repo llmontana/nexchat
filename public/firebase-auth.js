@@ -121,10 +121,6 @@ function getItemDisplayName(item) {
   return item.username || item.email || "isimsiz";
 }
 
-function getItemSubtitle(item, fallback) {
-  return item.email || fallback;
-}
-
 function getInitials(item) {
   return getItemDisplayName(item).slice(0, 2).toUpperCase();
 }
@@ -150,7 +146,9 @@ function renderRequestList(targetElement, items, emptyText, mode) {
   targetElement.innerHTML = items
     .map((item) => {
       const title = escapeHtml(getItemDisplayName(item));
-      const subtitle = escapeHtml(getItemSubtitle(item, mode === "incoming" ? "Seni eklemek istiyor" : "İsteğin bekliyor"));
+      const subtitle = escapeHtml(
+        mode === "incoming" ? "Seni eklemek istiyor" : "İsteğin bekliyor"
+      );
 
       return `
         <article class="request-item">
@@ -214,7 +212,7 @@ function renderFriendsPanel() {
     .map((item) => {
       const initials = escapeHtml(getInitials(item));
       const title = escapeHtml(getItemDisplayName(item));
-      const subtitle = escapeHtml(getItemSubtitle(item, hasSearch ? "Arama sonucu" : "Arkadaş"));
+      const subtitle = escapeHtml(hasSearch ? "Kullanıcı bulundu" : "Arkadaş");
 
       let actionMarkup = "";
       if (hasSearch) {
@@ -400,14 +398,12 @@ async function createFriendship(targetProfile) {
   batch.set(doc(db, "users", myUid, "friends", targetUid), {
     uid: targetUid,
     username: targetProfile.username || "",
-    email: targetProfile.email || "",
     addedAt: serverTimestamp()
   });
 
   batch.set(doc(db, "users", targetUid, "friends", myUid), {
     uid: myUid,
     username: currentUserProfile.username || "",
-    email: currentUserProfile.email || "",
     addedAt: serverTimestamp()
   });
 
@@ -454,13 +450,11 @@ async function sendFriendRequest(targetProfile) {
   batch.set(outgoingRef, {
     uid: targetUid,
     username: targetProfile.username || "",
-    email: targetProfile.email || "",
     createdAt: serverTimestamp()
   });
   batch.set(doc(db, "users", targetUid, "incomingRequests", myUid), {
     uid: myUid,
     username: currentUserProfile.username || "",
-    email: currentUserProfile.email || "",
     createdAt: serverTimestamp()
   });
   await batch.commit();
