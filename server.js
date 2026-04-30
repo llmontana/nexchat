@@ -16,6 +16,7 @@ const BAN_DURATION_MS = Number(process.env.BAN_DURATION_MS || 24 * 60 * 60 * 100
 let waitingSocketId = null;
 
 const peers = new Map();
+const socketProfiles = new Map();
 const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"]);
 const bannedIps = new Map();
 
@@ -124,8 +125,14 @@ function pairSockets(firstId, secondId) {
   peers.set(firstId, secondId);
   peers.set(secondId, firstId);
 
-  io.to(firstId).emit("partner-found", { initiator: true });
-  io.to(secondId).emit("partner-found", { initiator: false });
+  io.to(firstId).emit("partner-found", {
+    initiator: true,
+    partnerProfile: socketProfiles.get(secondId) || null
+  });
+  io.to(secondId).emit("partner-found", {
+    initiator: false,
+    partnerProfile: socketProfiles.get(firstId) || null
+  });
 }
 
 function getPartnerId(socketId) {
@@ -207,6 +214,26 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   socket.emit("status", "Sunucuya baglandin.");
 
+  socket.on("user-profile", (profile) => {
+    if (!profile || typeof profile !== "object") {
+      return;
+    }
+
+    const username =
+      typeof profile.username === "string" ? profile.username.trim().slice(0, 20) : "";
+    const email = typeof profile.email === "string" ? profile.email.trim().slice(0, 120) : "";
+
+    socketProfiles.set(socket.id, {
+      username,
+      email
+    });
+
+    const partnerId = getPartnerId(socket.id);
+    if (partnerId) {
+      io.to(partnerId).emit("partner-profile", socketProfiles.get(socket.id));
+    }
+  });
+
   socket.on("find-partner", () => {
     if (getPartnerId(socket.id)) {
       socket.emit("status", "Zaten bir eslesmen var.");
@@ -287,6 +314,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     leaveConversation(socket, false);
+    socketProfiles.delete(socket.id);
   });
 });
 

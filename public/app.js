@@ -6,7 +6,9 @@ const nextButton = document.getElementById("nextButton");
 const reportButton = document.getElementById("reportButton");
 const toggleMicButton = document.getElementById("toggleMicButton");
 const toggleCameraButton = document.getElementById("toggleCameraButton");
+const localVideoLabel = document.getElementById("localVideoLabel");
 const localVideo = document.getElementById("localVideo");
+const remoteVideoLabel = document.getElementById("remoteVideoLabel");
 const remoteVideo = document.getElementById("remoteVideo");
 const remotePlaceholder = document.getElementById("remotePlaceholder");
 const statusBadge = document.getElementById("statusBadge");
@@ -34,6 +36,15 @@ let isConnected = false;
 let mobileControlsCollapsed = false;
 let reportInFlight = false;
 let isAuthenticated = false;
+let currentUserProfile = null;
+
+function setLocalLabel(username) {
+  localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
+}
+
+function setRemoteLabel(username) {
+  remoteVideoLabel.textContent = username || "Yabanci";
+}
 
 function detectMobileLayout() {
   const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
@@ -185,6 +196,7 @@ function resetRemoteVideo() {
   remoteVideo.srcObject = null;
   remoteVideo.load();
   isMatching = false;
+  setRemoteLabel("");
   setConnectedState(false);
 }
 
@@ -417,11 +429,12 @@ socket.on("waiting", () => {
   syncActionButtons();
 });
 
-socket.on("partner-found", async ({ initiator }) => {
+socket.on("partner-found", async ({ initiator, partnerProfile }) => {
   try {
     await ensureLocalMedia();
     politePeer = !initiator;
     const connection = createPeerConnection();
+    setRemoteLabel(partnerProfile?.username || "");
     setStatus("Partner bulundu, baglanti kuruluyor...");
     logEvent("Partner bulundu. WebRTC baglantisi kuruluyor.");
 
@@ -458,17 +471,30 @@ socket.on("moderation-ban", ({ message }) => {
   logEvent(message || "Uygunsuz icerik nedeniyle erisim engellendi.");
 });
 
+socket.on("partner-profile", (profile) => {
+  setRemoteLabel(profile?.username || "");
+});
+
 window.addEventListener("auth-state", ({ detail }) => {
   isAuthenticated = Boolean(detail?.authenticated);
 
   if (!isAuthenticated) {
     leaveActiveSession();
     resetLocalMedia();
+    currentUserProfile = null;
+    setLocalLabel("");
+    setRemoteLabel("");
     setStatus("Giris yapman gerekiyor");
     logEvent("Sohbete devam etmek icin giris yap.");
   } else {
+    currentUserProfile = detail.user;
+    setLocalLabel(detail.user.username || "");
+    socket.emit("user-profile", {
+      username: detail.user.username || "",
+      email: detail.user.email || ""
+    });
     setStatus("Giris yapildi");
-    logEvent(`${detail.user.email} ile oturum acildi.`);
+    logEvent(`${detail.user.username || detail.user.email} ile oturum acildi.`);
   }
 
   syncActionButtons();
@@ -536,5 +562,7 @@ socket.on("webrtc-ice-candidate", async (candidate) => {
 applyDeviceMode();
 syncMobileDrawerState();
 syncActionButtons();
+setLocalLabel("");
+setRemoteLabel("");
 window.addEventListener("resize", applyDeviceMode);
 window.addEventListener("pointerdown", resumeRemotePlayback);
