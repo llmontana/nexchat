@@ -121,7 +121,13 @@
           </article>
 
           <article class="video-panel remote-panel">
-            <div id="remoteVideoLabel" class="video-label">Yabancı</div>
+            <div class="remote-label-row">
+              <div id="remoteVideoLabel" class="video-label">Yabancı</div>
+              <button id="addFriendButton" class="add-friend-button" type="button" disabled>
+                <span class="add-friend-icon" aria-hidden="true">+</span>
+                <span class="add-friend-text">Arkadaş Ekle</span>
+              </button>
+            </div>
             <video id="remoteVideo" autoplay playsinline webkit-playsinline="true"></video>
             <div id="remotePlaceholder" class="video-placeholder">
               Partner bağlanınca görüntü burada açılacak.
@@ -149,6 +155,26 @@
             autocomplete="off"
           />
         </div>
+
+        <section class="request-section">
+          <div class="request-header">
+            <strong>Gelen İstekler</strong>
+            <span id="incomingRequestsCount" class="request-count">0</span>
+          </div>
+          <div id="incomingRequestsList" class="request-list">
+            <article class="request-empty">Şu an bekleyen istek yok.</article>
+          </div>
+        </section>
+
+        <section class="request-section">
+          <div class="request-header">
+            <strong>Gönderilen İstekler</strong>
+            <span id="outgoingRequestsCount" class="request-count">0</span>
+          </div>
+          <div id="outgoingRequestsList" class="request-list">
+            <article class="request-empty">Henüz kimseye istek göndermedin.</article>
+          </div>
+        </section>
 
         <div id="friendsList" class="friends-list">
           <article class="friend-empty">

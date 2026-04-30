@@ -222,10 +222,12 @@ io.on("connection", (socket) => {
     const username =
       typeof profile.username === "string" ? profile.username.trim().slice(0, 20) : "";
     const email = typeof profile.email === "string" ? profile.email.trim().slice(0, 120) : "";
+    const uid = typeof profile.uid === "string" ? profile.uid.trim().slice(0, 128) : "";
 
     socketProfiles.set(socket.id, {
       username,
-      email
+      email,
+      uid
     });
 
     const partnerId = getPartnerId(socket.id);

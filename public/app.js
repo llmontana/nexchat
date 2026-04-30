@@ -4,6 +4,7 @@ const startButton = document.getElementById("startButton");
 const findButton = document.getElementById("findButton");
 const nextButton = document.getElementById("nextButton");
 const reportButton = document.getElementById("reportButton");
+const addFriendButton = document.getElementById("addFriendButton");
 const toggleMicButton = document.getElementById("toggleMicButton");
 const toggleCameraButton = document.getElementById("toggleCameraButton");
 const localVideoLabel = document.getElementById("localVideoLabel");
@@ -39,6 +40,7 @@ let mobileControlsCollapsed = false;
 let reportInFlight = false;
 let isAuthenticated = false;
 let currentUserProfile = null;
+let currentPartnerProfile = null;
 let mobileActiveTab = "home";
 
 function setLocalLabel(username) {
@@ -132,6 +134,7 @@ function syncActionButtons() {
   nextButton.disabled = !isAuthenticated || !mediaReady || (!isMatching && !isConnected);
   reportButton.disabled = !isAuthenticated || !isConnected || reportInFlight;
   logoutButton.disabled = !isAuthenticated;
+  addFriendButton.disabled = !isAuthenticated || !currentPartnerProfile?.uid;
 }
 
 function logEvent(text) {
@@ -212,6 +215,7 @@ function resetRemoteVideo() {
   remoteVideo.srcObject = null;
   remoteVideo.load();
   isMatching = false;
+  currentPartnerProfile = null;
   setRemoteLabel("");
   setConnectedState(false);
 }
@@ -438,6 +442,25 @@ reportButton.addEventListener("click", () => {
   socket.emit("report-user", { imageData });
 });
 
+addFriendButton.addEventListener("click", async () => {
+  if (!currentPartnerProfile?.uid || !window.nexchatSocial?.sendFriendRequest) {
+    return;
+  }
+
+  addFriendButton.disabled = true;
+
+  try {
+    const result = await window.nexchatSocial.sendFriendRequest(currentPartnerProfile);
+    setStatus(result.ok ? "Arkadaş işlemi tamamlandı" : "Arkadaş işlemi başarısız");
+    logEvent(result.message);
+  } catch (error) {
+    setStatus("Arkadaş işlemi başarısız");
+    logEvent(error.message || "Arkadaş ekleme sırasında hata oluştu.");
+  } finally {
+    syncActionButtons();
+  }
+});
+
 socket.on("status", (text) => {
   setStatus(text);
   logEvent(text);
@@ -460,9 +483,11 @@ socket.on("partner-found", async ({ initiator, partnerProfile }) => {
     await ensureLocalMedia();
     politePeer = !initiator;
     const connection = createPeerConnection();
+    currentPartnerProfile = partnerProfile || null;
     setRemoteLabel(partnerProfile?.username || "");
     setStatus("Partner bulundu, bağlantı kuruluyor...");
     logEvent("Partner bulundu. WebRTC bağlantısı kuruluyor.");
+    syncActionButtons();
 
     if (initiator) {
       makingOffer = true;
@@ -498,7 +523,9 @@ socket.on("moderation-ban", ({ message }) => {
 });
 
 socket.on("partner-profile", (profile) => {
+  currentPartnerProfile = profile || null;
   setRemoteLabel(profile?.username || "");
+  syncActionButtons();
 });
 
 window.addEventListener("auth-state", ({ detail }) => {
@@ -516,6 +543,7 @@ window.addEventListener("auth-state", ({ detail }) => {
     currentUserProfile = detail.user;
     setLocalLabel(detail.user.username || "");
     socket.emit("user-profile", {
+      uid: detail.user.uid || "",
       username: detail.user.username || "",
       email: detail.user.email || ""
     });

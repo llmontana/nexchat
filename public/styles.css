@@ -385,12 +385,167 @@ button:disabled {
   box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.12);
 }
 
+.request-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.request-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.request-header strong {
+  font-size: 0.92rem;
+}
+
+.request-count {
+  min-width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.request-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.request-item strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.94rem;
+}
+
+.request-item span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.request-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.request-button {
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+}
+
+.request-button.accept {
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+.request-button.reject {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.request-empty {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .friends-list {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.friend-item strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.98rem;
+}
+
+.friend-item span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.friend-item-content {
+  min-width: 0;
+}
+
+.friend-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.friend-action-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+}
+
+.friend-status-chip {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.friend-badge {
+  min-width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  animation: rainbow-shift 8s linear infinite;
 }
 
 .friend-empty {
@@ -442,6 +597,57 @@ button:disabled {
   color: white;
   font-size: 0.85rem;
   font-weight: 700;
+}
+
+.remote-label-row {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.remote-label-row .video-label {
+  position: static;
+}
+
+.add-friend-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(10, 15, 22, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  pointer-events: auto;
+}
+
+.add-friend-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  color: white;
+  font-size: 0.95rem;
+  line-height: 1;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+.add-friend-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 video {
@@ -694,6 +900,39 @@ body.is-mobile .video-placeholder {
   padding-bottom: 78px;
   align-items: flex-start;
   padding-top: 88px;
+}
+
+body.is-mobile .remote-label-row {
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  gap: 8px;
+}
+
+body.is-mobile .add-friend-button {
+  min-height: 34px;
+  padding: 8px 10px;
+}
+
+body.is-mobile .add-friend-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 0.85rem;
+}
+
+body.is-mobile .add-friend-text {
+  font-size: 0.72rem;
+}
+
+body.is-mobile .request-item,
+body.is-mobile .friend-item {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+body.is-mobile .request-actions,
+body.is-mobile .friend-item-actions {
+  width: 100%;
 }
 
 body.is-mobile.mobile-controls-collapsed .hero-card {
