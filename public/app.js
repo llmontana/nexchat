@@ -218,6 +218,17 @@ function resetLocalMedia() {
   syncMediaToggleLabels();
 }
 
+function leaveActiveSession() {
+  if (!isMatching && !isConnected) {
+    return;
+  }
+
+  socket.emit("next-partner");
+  cleanupPeerConnection();
+  isMatching = false;
+  isConnected = false;
+}
+
 function createPeerConnection() {
   cleanupPeerConnection();
 
@@ -451,7 +462,7 @@ window.addEventListener("auth-state", ({ detail }) => {
   isAuthenticated = Boolean(detail?.authenticated);
 
   if (!isAuthenticated) {
-    cleanupPeerConnection();
+    leaveActiveSession();
     resetLocalMedia();
     setStatus("Giris yapman gerekiyor");
     logEvent("Sohbete devam etmek icin giris yap.");
