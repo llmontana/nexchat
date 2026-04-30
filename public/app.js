@@ -22,6 +22,7 @@ const mobileFriendsTab = document.getElementById("mobileFriendsTab");
 const mobilePremiumTab = document.getElementById("mobilePremiumTab");
 const premiumGirlButton = document.getElementById("premiumGirlButton");
 const premiumBoyButton = document.getElementById("premiumBoyButton");
+const clearPremiumFilterButton = document.getElementById("clearPremiumFilterButton");
 
 const rtcConfig = {
   iceServers: [
@@ -134,11 +135,13 @@ function syncFindButtonState() {
 function syncPremiumFilterState() {
   const girlSelected = activeMatchFilter === "kiz";
   const boySelected = activeMatchFilter === "erkek";
+  const hasSelectedFilter = girlSelected || boySelected;
 
   premiumGirlButton.textContent = girlSelected ? "Seçili" : DEFAULT_GIRL_FILTER_LABEL;
   premiumBoyButton.textContent = boySelected ? "Seçili" : DEFAULT_BOY_FILTER_LABEL;
   premiumGirlButton.classList.toggle("selected", girlSelected);
   premiumBoyButton.classList.toggle("selected", boySelected);
+  clearPremiumFilterButton.classList.toggle("hidden", !hasSelectedFilter);
 }
 
 function resumeRemotePlayback() {
@@ -606,6 +609,17 @@ premiumGirlButton.addEventListener("click", async () => {
 
 premiumBoyButton.addEventListener("click", async () => {
   await startPremiumMatch("erkek");
+});
+
+clearPremiumFilterButton.addEventListener("click", () => {
+  if (activeMatchFilter === "any") {
+    return;
+  }
+
+  activeMatchFilter = "any";
+  syncActionButtons();
+  setStatus("Filtre sıfırlandı");
+  logEvent("Aktif premium filtre sıfırlandı.");
 });
 
 reportButton.addEventListener("click", () => {

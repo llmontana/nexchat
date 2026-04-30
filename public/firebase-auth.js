@@ -101,6 +101,11 @@ const PREMIUM_FILTER_COSTS = {
   kiz: 9,
   erkek: 5
 };
+const PRESENCE_HEARTBEAT_MS = 45000;
+const PRESENCE_ONLINE_WINDOW_MS = 90000;
+const friendPresenceMap = new Map();
+const friendPresenceUnsubscribers = new Map();
+let presenceHeartbeatTimer = null;
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -212,6 +217,21 @@ function getItemDisplayName(item) {
 
 function getInitials(item) {
   return getItemDisplayName(item).slice(0, 2).toUpperCase();
+}
+
+function isPresenceOnline(presence) {
+  if (!presence) {
+    return false;
+  }
+
+  const lastSeen =
+    typeof presence.lastSeenAt?.toDate === "function"
+      ? presence.lastSeenAt.toDate().getTime()
+      : presence.lastSeenAt instanceof Date
+        ? presence.lastSeenAt.getTime()
+        : 0;
+
+  return Boolean(presence.online) && Date.now() - lastSeen < PRESENCE_ONLINE_WINDOW_MS;
 }
 
 function findFriendByUid(uid) {
@@ -367,7 +387,9 @@ function renderFriendsPanel() {
     .map((item) => {
       const initials = escapeHtml(getInitials(item));
       const title = escapeHtml(getItemDisplayName(item));
-      const subtitle = escapeHtml(hasSearch ? "Kullanıcı bulundu" : "Mesajlaşmaya hazır");
+      const presence = friendPresenceMap.get(item.uid);
+      const isOnline = isPresenceOnline(presence);
+      const subtitle = escapeHtml(hasSearch ? "Kullanıcı bulundu" : isOnline ? "Çevrimiçi" : "Çevrimdışı");
       const isSelected = !hasSearch && isChatPanelOpen && selectedFriend?.uid === item.uid;
 
       let actionMarkup = "";
@@ -393,7 +415,10 @@ function renderFriendsPanel() {
         <article class="friend-item ${hasSearch ? "" : "selectable"} ${isSelected ? "selected" : ""}" ${hasSearch ? "" : `data-select-friend="${escapeHtml(item.uid || "")}"`}>
           <div class="friend-item-content">
             <strong>${title}</strong>
-            <span>${subtitle}</span>
+            <div class="friend-presence-row">
+              <span class="friend-presence-dot ${hasSearch ? "neutral" : isOnline ? "online" : "offline"}"></span>
+              <span>${subtitle}</span>
+            </div>
           </div>
           <div class="friend-item-actions">
             ${actionMarkup}
@@ -489,12 +514,87 @@ function clearSocialSubscriptions() {
   }
 
   clearChatSubscription();
+  clearFriendPresenceSubscriptions();
 }
 
 function clearCurrentUserProfileSubscription() {
   if (currentUserProfileUnsubscribe) {
     currentUserProfileUnsubscribe();
     currentUserProfileUnsubscribe = null;
+  }
+}
+
+function clearFriendPresenceSubscriptions() {
+  for (const unsubscribe of friendPresenceUnsubscribers.values()) {
+    unsubscribe();
+  }
+
+  friendPresenceUnsubscribers.clear();
+  friendPresenceMap.clear();
+}
+
+function syncFriendPresenceSubscriptions() {
+  const friendUidSet = new Set(currentFriends.map((item) => item.uid).filter(Boolean));
+
+  for (const [uid, unsubscribe] of friendPresenceUnsubscribers.entries()) {
+    if (friendUidSet.has(uid)) {
+      continue;
+    }
+
+    unsubscribe();
+    friendPresenceUnsubscribers.delete(uid);
+    friendPresenceMap.delete(uid);
+  }
+
+  for (const uid of friendUidSet) {
+    if (friendPresenceUnsubscribers.has(uid)) {
+      continue;
+    }
+
+    const unsubscribe = onSnapshot(doc(db, "users", uid), (snapshot) => {
+      friendPresenceMap.set(uid, snapshot.exists() ? snapshot.data() : null);
+      renderFriendsPanel();
+    });
+
+    friendPresenceUnsubscribers.set(uid, unsubscribe);
+  }
+}
+
+async function writeOwnPresence(online) {
+  if (!currentUserProfile?.uid) {
+    return;
+  }
+
+  await writePresenceForUid(currentUserProfile.uid, online);
+}
+
+async function writePresenceForUid(uid, online) {
+  if (!uid) {
+    return;
+  }
+
+  await setDoc(
+    doc(db, "users", uid),
+    {
+      online,
+      lastSeenAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
+function startPresenceHeartbeat() {
+  stopPresenceHeartbeat();
+  void writeOwnPresence(true).catch(() => {});
+  presenceHeartbeatTimer = setInterval(() => {
+    void writeOwnPresence(true).catch(() => {});
+  }, PRESENCE_HEARTBEAT_MS);
+}
+
+function stopPresenceHeartbeat() {
+  if (presenceHeartbeatTimer) {
+    clearInterval(presenceHeartbeatTimer);
+    presenceHeartbeatTimer = null;
   }
 }
 
@@ -540,6 +640,7 @@ function subscribeSocialCollections(uid) {
 
   friendsUnsubscribe = onSnapshot(collection(db, "users", uid, "friends"), (snapshot) => {
     currentFriends = snapshot.docs.map((docSnapshot) => docSnapshot.data());
+    syncFriendPresenceSubscriptions();
 
     if (selectedFriend) {
       const refreshedFriend = currentFriends.find((item) => item.uid === selectedFriend.uid);
@@ -643,6 +744,7 @@ async function finalizeSignedInUser(user, existingProfile) {
 
   updateDiamondUi(currentUserProfile.diamonds);
   subscribeSocialCollections(user.uid);
+  startPresenceHeartbeat();
   clearCurrentUserProfileSubscription();
   currentUserProfileUnsubscribe = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
     if (!snapshot.exists() || !currentUserProfile) {
@@ -1083,6 +1185,7 @@ logoutButton.addEventListener("click", async () => {
   logoutButton.disabled = true;
 
   try {
+    await writeOwnPresence(false);
     await signOut(auth);
   } catch (error) {
     setAuthStatus(error.message, true);
@@ -1103,6 +1206,10 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  const previousUid = currentUserProfile?.uid || "";
+  if (previousUid) {
+    void writePresenceForUid(previousUid, false).catch(() => {});
+  }
   authOverlay.classList.remove("hidden");
   usernameOverlay.classList.add("hidden");
   document.body.classList.remove("is-authenticated");
@@ -1115,6 +1222,8 @@ onAuthStateChanged(auth, async (user) => {
   chatInput.value = "";
   pendingProfileUser = null;
   currentUserProfile = null;
+  stopPresenceHeartbeat();
+  friendPresenceMap.clear();
   clearCurrentUserProfileSubscription();
   currentFriends = [];
   currentIncomingRequests = [];
