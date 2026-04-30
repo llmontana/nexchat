@@ -48,6 +48,8 @@ let mobileActiveTab = "home";
 let activeMatchFilter = "any";
 let availableVideoInputs = [];
 let currentVideoInputId = "";
+const DEFAULT_GIRL_FILTER_LABEL = "9 ◈";
+const DEFAULT_BOY_FILTER_LABEL = "5 ◈";
 
 function setLocalLabel(username) {
   localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
@@ -129,6 +131,16 @@ function syncFindButtonState() {
   findButton.textContent = isMatching || isConnected ? "Sohbeti Durdur" : "Sohbete Başla";
 }
 
+function syncPremiumFilterState() {
+  const girlSelected = activeMatchFilter === "kiz";
+  const boySelected = activeMatchFilter === "erkek";
+
+  premiumGirlButton.textContent = girlSelected ? "Seçili" : DEFAULT_GIRL_FILTER_LABEL;
+  premiumBoyButton.textContent = boySelected ? "Seçili" : DEFAULT_BOY_FILTER_LABEL;
+  premiumGirlButton.classList.toggle("selected", girlSelected);
+  premiumBoyButton.classList.toggle("selected", boySelected);
+}
+
 function resumeRemotePlayback() {
   if (!remoteVideo.srcObject) {
     return;
@@ -168,6 +180,7 @@ function syncActionButtons() {
     isConnected ||
     Number(currentUserProfile?.diamonds || 0) < 5;
   syncFindButtonState();
+  syncPremiumFilterState();
 }
 
 function logEvent(text) {
@@ -269,6 +282,7 @@ function resetRemoteVideo() {
   setRemoteLabel("");
   setConnectedState(false);
   syncFindButtonState();
+  syncPremiumFilterState();
 }
 
 function cleanupPeerConnection() {
@@ -320,6 +334,7 @@ function stopConversationFlow() {
   cleanupPeerConnection();
   isMatching = false;
   isConnected = false;
+  activeMatchFilter = "any";
   mobileActiveTab = "home";
   syncMobileTabs();
   setStatus("Sohbet durduruldu");
@@ -452,6 +467,9 @@ async function startPremiumMatch(targetGender) {
     await requestPartner(targetGender);
     logEvent(
       `${targetGender === "kiz" ? "Sadece kız" : "Sadece erkek"} filtresi için ${result.cost} elmas kullanıldı.`
+    );
+    logEvent(
+      `${targetGender === "kiz" ? "Kız" : "Erkek"} filtresi seçildi. Sadece bu cinsiyetle kayıt olan kullanıcılar aranacak.`
     );
   } catch (error) {
     setStatus("Premium filtre kullanılamadı");
@@ -639,8 +657,16 @@ socket.on("connect_error", (error) => {
 
 socket.on("waiting", () => {
   isMatching = true;
-  setStatus("Bekleme sırasındasın");
-  logEvent("Eşleşme kuyruğundasın.");
+  setStatus(
+    activeMatchFilter === "any"
+      ? "Bekleme sırasındasın"
+      : `${activeMatchFilter === "kiz" ? "Kız" : "Erkek"} filtresinde bekliyorsun`
+  );
+  logEvent(
+    activeMatchFilter === "any"
+      ? "Eşleşme kuyruğundasın."
+      : `${activeMatchFilter === "kiz" ? "Kız" : "Erkek"} filtresiyle eşleşme kuyruğundasın.`
+  );
   syncActionButtons();
 });
 
@@ -653,6 +679,11 @@ socket.on("partner-found", async ({ initiator, partnerProfile }) => {
     setRemoteLabel(partnerProfile?.username || "");
     setStatus("Partner bulundu, bağlantı kuruluyor...");
     logEvent("Partner bulundu. WebRTC bağlantısı kuruluyor.");
+    if (activeMatchFilter !== "any") {
+      logEvent(
+        `${activeMatchFilter === "kiz" ? "Kız" : "Erkek"} filtresine uygun bir kullanıcı bulundu.`
+      );
+    }
     syncActionButtons();
 
     if (initiator) {
