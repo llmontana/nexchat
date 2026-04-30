@@ -1304,18 +1304,25 @@ body.is-mobile .remote-label-row {
 }
 
 body.is-mobile .add-friend-button {
-  min-height: 34px;
-  padding: 8px 10px;
+  min-height: 32px;
+  max-width: 122px;
+  padding: 7px 10px;
+  gap: 6px;
+  border-radius: 999px;
 }
 
 body.is-mobile .add-friend-icon {
-  width: 18px;
-  height: 18px;
-  font-size: 0.85rem;
+  width: 16px;
+  height: 16px;
+  font-size: 0.78rem;
+  flex: 0 0 auto;
 }
 
 body.is-mobile .add-friend-text {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.is-mobile .request-item,
