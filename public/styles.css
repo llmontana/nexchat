@@ -596,7 +596,7 @@ body.is-mobile .mobile-drawer-toggle {
   background: rgba(12, 15, 22, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-  z-index: 7;
+  z-index: 10;
 }
 
 .mobile-drawer-arrow {
@@ -705,7 +705,7 @@ body.is-mobile.mobile-controls-collapsed .mobile-drawer-arrow {
 }
 
 body.is-mobile.mobile-controls-collapsed .mobile-drawer-toggle {
-  bottom: 18px;
+  bottom: 82px;
 }
 
 body.is-mobile.mobile-controls-collapsed .event-log {
