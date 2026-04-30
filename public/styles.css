@@ -75,6 +75,54 @@ body {
   line-height: 1.6;
 }
 
+.social-auth {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.social-button {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+.google-button {
+  background: #ffffff;
+  color: #10131a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.apple-button {
+  background: #0f1218;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.auth-divider {
+  position: relative;
+  margin: 18px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.auth-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-divider span {
+  position: relative;
+  padding: 0 12px;
+  background: rgba(17, 20, 27, 0.95);
+}
+
 .auth-form {
   display: grid;
   gap: 12px;

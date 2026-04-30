@@ -1,7 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  OAuthProvider,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
   getAuth
@@ -36,8 +39,12 @@ const authModeButton = document.getElementById("authModeButton");
 const authStatus = document.getElementById("authStatus");
 const logoutButton = document.getElementById("logoutButton");
 const sessionBadge = document.getElementById("sessionBadge");
+const googleLoginButton = document.getElementById("googleLoginButton");
+const appleLoginButton = document.getElementById("appleLoginButton");
 
 let authMode = "login";
+const googleProvider = new GoogleAuthProvider();
+const appleProvider = new OAuthProvider("apple.com");
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -58,12 +65,34 @@ async function ensureUserProfile(user) {
     {
       uid: user.uid,
       email: user.email || "",
+      provider: user.providerData?.[0]?.providerId || "password",
       createdAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
       isBanned: false
     },
     { merge: true }
   );
+}
+
+function setAuthUiBusy(busy) {
+  authSubmitButton.disabled = busy;
+  authModeButton.disabled = busy;
+  googleLoginButton.disabled = busy;
+  appleLoginButton.disabled = busy;
+}
+
+async function signInWithProvider(provider, providerName) {
+  setAuthUiBusy(true);
+  setAuthStatus(`${providerName} ile giris yapiliyor...`);
+
+  try {
+    const credential = await signInWithPopup(auth, provider);
+    await ensureUserProfile(credential.user);
+  } catch (error) {
+    setAuthStatus(error.message, true);
+  } finally {
+    setAuthUiBusy(false);
+  }
 }
 
 authModeButton.addEventListener("click", () => {
@@ -81,8 +110,7 @@ authForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  authSubmitButton.disabled = true;
-  authModeButton.disabled = true;
+  setAuthUiBusy(true);
   setAuthStatus(authMode === "login" ? "Giris yapiliyor..." : "Hesap olusturuluyor...");
 
   try {
@@ -95,9 +123,16 @@ authForm.addEventListener("submit", async (event) => {
   } catch (error) {
     setAuthStatus(error.message, true);
   } finally {
-    authSubmitButton.disabled = false;
-    authModeButton.disabled = false;
+    setAuthUiBusy(false);
   }
+});
+
+googleLoginButton.addEventListener("click", async () => {
+  await signInWithProvider(googleProvider, "Google");
+});
+
+appleLoginButton.addEventListener("click", async () => {
+  await signInWithProvider(appleProvider, "Apple");
 });
 
 logoutButton.addEventListener("click", async () => {
