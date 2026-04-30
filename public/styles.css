@@ -332,9 +332,9 @@ body.is-mobile .hero-card {
 }
 
 body.is-mobile .mobile-drawer-toggle {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  top: -18px;
+  bottom: 104px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -346,6 +346,7 @@ body.is-mobile .mobile-drawer-toggle {
   background: rgba(12, 15, 22, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  z-index: 7;
 }
 
 .mobile-drawer-arrow {
@@ -417,6 +418,10 @@ body.is-mobile.mobile-controls-collapsed .hero-card {
 
 body.is-mobile.mobile-controls-collapsed .mobile-drawer-arrow {
   transform: rotate(225deg) translate(0, 0);
+}
+
+body.is-mobile.mobile-controls-collapsed .mobile-drawer-toggle {
+  bottom: 18px;
 }
 
 body.is-mobile.mobile-controls-collapsed .event-log {
