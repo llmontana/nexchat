@@ -1,8 +1,9 @@
-const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const { initializeApp, applicationDefault, cert, getApps } = require("firebase-admin/app");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 const app = express();
 const server = http.createServer(app);
@@ -16,14 +17,15 @@ const SEXUAL_SEVERITY_THRESHOLD = Number(process.env.SEXUAL_SEVERITY_THRESHOLD |
 const BAN_DURATION_MS = Number(process.env.BAN_DURATION_MS || 24 * 60 * 60 * 1000);
 const FIREBASE_WEB_API_KEY =
   process.env.FIREBASE_WEB_API_KEY || "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs";
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "nexchat-69594";
+const FIREBASE_CLIENT_EMAIL = process.env.FIREBASE_CLIENT_EMAIL || "";
+const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY || "";
+const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr72@gmail.com")
   .split(",")
   .map((item) => item.trim().toLocaleLowerCase("tr-TR"))
   .filter(Boolean);
 const waitingQueue = [];
-const dataDirectory = path.join(__dirname, "data");
-const recentSessionsFilePath = path.join(dataDirectory, "recent-sessions.json");
-const bannedIpsFilePath = path.join(dataDirectory, "banned-ips.json");
 
 const peers = new Map();
 const socketProfiles = new Map();
@@ -33,91 +35,306 @@ const matchPreferences = new Map();
 const lastPartnerBySocket = new Map();
 const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"]);
 const bannedIps = new Map();
-let persistenceWriteTimer = null;
+const FIRESTORE_COLLECTIONS = {
+  sessions: "server_recent_sessions",
+  bans: "server_ip_bans"
+};
+let adminFirestore = null;
+let firestoreReady = false;
+let firestoreInitError = null;
 
 app.set("trust proxy", true);
 app.use(express.json({ limit: "2mb" }));
 
-function ensureDataDirectory() {
-  if (!fs.existsSync(dataDirectory)) {
-    fs.mkdirSync(dataDirectory, { recursive: true });
-  }
+function normalizePrivateKey(privateKey) {
+  return privateKey ? privateKey.replace(/\\n/g, "\n") : "";
 }
 
-function readJsonFile(filePath, fallbackValue) {
+function initializeFirestore() {
   try {
-    if (!fs.existsSync(filePath)) {
-      return fallbackValue;
+    if (!getApps().length) {
+      if (FIREBASE_SERVICE_ACCOUNT_JSON) {
+        const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+        initializeApp({
+          credential: cert({
+            projectId: serviceAccount.project_id,
+            clientEmail: serviceAccount.client_email,
+            privateKey: normalizePrivateKey(serviceAccount.private_key)
+          })
+        });
+      } else if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
+        initializeApp({
+          credential: cert({
+            projectId: FIREBASE_PROJECT_ID,
+            clientEmail: FIREBASE_CLIENT_EMAIL,
+            privateKey: normalizePrivateKey(FIREBASE_PRIVATE_KEY)
+          })
+        });
+      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        initializeApp({
+          credential: applicationDefault(),
+          projectId: FIREBASE_PROJECT_ID
+        });
+      } else {
+        throw new Error(
+          "Firestore icin servis hesabi gerekli. FIREBASE_SERVICE_ACCOUNT_JSON veya FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY ayarla."
+        );
+      }
     }
 
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    adminFirestore = getFirestore();
+    firestoreReady = true;
   } catch (error) {
-    console.error(`Veri dosyasi okunamadi: ${filePath}`, error);
-    return fallbackValue;
+    firestoreReady = false;
+    firestoreInitError = error;
+    console.error("Firestore baslatilamadi, kalici sunucu verileri devre disi kaldi.", error);
   }
 }
 
-function writePersistenceSnapshot() {
-  ensureDataDirectory();
+function isFirestoreReady() {
+  return Boolean(firestoreReady && adminFirestore);
+}
 
-  const sessionsPayload = [...recentUserSessions.values()];
-  const bansPayload = [...bannedIps.entries()].map(([ip, record]) => ({
-    ip,
+function encodeFirestoreKey(value) {
+  return encodeURIComponent(String(value || "").trim());
+}
+
+function getSessionsCollection() {
+  return adminFirestore.collection(FIRESTORE_COLLECTIONS.sessions);
+}
+
+function getBansCollection() {
+  return adminFirestore.collection(FIRESTORE_COLLECTIONS.bans);
+}
+
+function createSessionPayload(session) {
+  return {
+    uid: session.uid,
+    username: session.username || "",
+    email: session.email || "",
+    ip: session.ip || "",
+    lastSeen: session.lastSeen || Date.now(),
+    updatedAt: FieldValue.serverTimestamp()
+  };
+}
+
+async function persistRecentSession(session) {
+  if (!session?.uid) {
+    return;
+  }
+
+  recentUserSessions.set(session.uid, {
+    uid: session.uid,
+    username: session.username || "",
+    email: session.email || "",
+    ip: session.ip || "",
+    lastSeen: session.lastSeen || Date.now()
+  });
+
+  if (!isFirestoreReady()) {
+    return;
+  }
+
+  try {
+    await getSessionsCollection().doc(session.uid).set(createSessionPayload(session), {
+      merge: true
+    });
+  } catch (error) {
+    console.error("Recent session Firestore'a yazilamadi.", error);
+  }
+}
+
+async function persistBan(ip, record) {
+  if (!ip) {
+    return;
+  }
+
+  bannedIps.set(ip, {
     reason: record.reason,
     expiresAt: record.expiresAt
-  }));
+  });
 
-  fs.writeFileSync(recentSessionsFilePath, JSON.stringify(sessionsPayload, null, 2));
-  fs.writeFileSync(bannedIpsFilePath, JSON.stringify(bansPayload, null, 2));
-}
-
-function schedulePersistenceWrite() {
-  if (persistenceWriteTimer) {
-    clearTimeout(persistenceWriteTimer);
+  if (!isFirestoreReady()) {
+    return;
   }
 
-  persistenceWriteTimer = setTimeout(() => {
-    persistenceWriteTimer = null;
-    writePersistenceSnapshot();
-  }, 100);
+  try {
+    await getBansCollection()
+      .doc(encodeFirestoreKey(ip))
+      .set(
+        {
+          ip,
+          reason: record.reason,
+          expiresAt: record.expiresAt,
+          updatedAt: FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+  } catch (error) {
+    console.error("IP ban Firestore'a yazilamadi.", error);
+  }
 }
 
-function restorePersistentState() {
-  ensureDataDirectory();
-
-  const storedSessions = readJsonFile(recentSessionsFilePath, []);
-  if (Array.isArray(storedSessions)) {
-    for (const session of storedSessions) {
-      if (!session || typeof session.uid !== "string" || !session.uid.trim()) {
-        continue;
-      }
-
-      recentUserSessions.set(session.uid, {
-        uid: session.uid,
-        username: typeof session.username === "string" ? session.username : "",
-        email: typeof session.email === "string" ? session.email : "",
-        ip: typeof session.ip === "string" ? session.ip : "",
-        lastSeen: typeof session.lastSeen === "number" ? session.lastSeen : Date.now()
-      });
-    }
+async function deleteBanFromPersistence(ip) {
+  if (!ip) {
+    return;
   }
 
-  const storedBans = readJsonFile(bannedIpsFilePath, []);
-  if (Array.isArray(storedBans)) {
-    for (const entry of storedBans) {
-      if (!entry || typeof entry.ip !== "string" || !entry.ip.trim()) {
-        continue;
+  bannedIps.delete(ip);
+  if (!isFirestoreReady()) {
+    return;
+  }
+
+  try {
+    await getBansCollection().doc(encodeFirestoreKey(ip)).delete();
+  } catch (error) {
+    console.error("IP ban Firestore'dan silinemedi.", error);
+  }
+}
+
+async function restorePersistentState() {
+  if (!isFirestoreReady()) {
+    return;
+  }
+
+  try {
+    const [sessionsSnapshot, bansSnapshot] = await Promise.all([
+      getSessionsCollection().get(),
+      getBansCollection().get()
+    ]);
+
+    sessionsSnapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data() || {};
+      if (!data.uid) {
+        return;
       }
 
-      if (typeof entry.expiresAt !== "number" || entry.expiresAt <= Date.now()) {
-        continue;
-      }
-
-      bannedIps.set(entry.ip, {
-        reason: typeof entry.reason === "string" ? entry.reason : "Belirtilmedi",
-        expiresAt: entry.expiresAt
+      recentUserSessions.set(data.uid, {
+        uid: data.uid,
+        username: typeof data.username === "string" ? data.username : "",
+        email: typeof data.email === "string" ? data.email : "",
+        ip: typeof data.ip === "string" ? data.ip : "",
+        lastSeen: typeof data.lastSeen === "number" ? data.lastSeen : Date.now()
       });
+    });
+
+    const now = Date.now();
+    const expiredBanDeletes = [];
+    bansSnapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data() || {};
+      if (!data.ip) {
+        return;
+      }
+
+      const expiresAt =
+        typeof data.expiresAt === "number"
+          ? data.expiresAt
+          : data.expiresAt instanceof Timestamp
+            ? data.expiresAt.toMillis()
+            : 0;
+
+      if (!expiresAt || expiresAt <= now) {
+        expiredBanDeletes.push(docSnapshot.ref.delete().catch(() => null));
+        return;
+      }
+
+      bannedIps.set(data.ip, {
+        reason: typeof data.reason === "string" ? data.reason : "Belirtilmedi",
+        expiresAt
+      });
+    });
+
+    if (expiredBanDeletes.length > 0) {
+      await Promise.all(expiredBanDeletes);
     }
+  } catch (error) {
+    console.error("Firestore kalici verileri yuklenemedi.", error);
+  }
+}
+
+async function getBanListFromStore() {
+  if (!isFirestoreReady()) {
+    return getBanList();
+  }
+
+  try {
+    const now = Date.now();
+    const snapshot = await getBansCollection().get();
+    const results = [];
+    const expiredDeletes = [];
+
+    bannedIps.clear();
+
+    snapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data() || {};
+      const expiresAt =
+        typeof data.expiresAt === "number"
+          ? data.expiresAt
+          : data.expiresAt instanceof Timestamp
+            ? data.expiresAt.toMillis()
+            : 0;
+
+      if (!data.ip || !expiresAt || expiresAt <= now) {
+        expiredDeletes.push(docSnapshot.ref.delete().catch(() => null));
+        return;
+      }
+
+      const record = {
+        ip: data.ip,
+        reason: typeof data.reason === "string" ? data.reason : "Belirtilmedi",
+        expiresAt
+      };
+      bannedIps.set(record.ip, {
+        reason: record.reason,
+        expiresAt: record.expiresAt
+      });
+      results.push(record);
+    });
+
+    if (expiredDeletes.length > 0) {
+      await Promise.all(expiredDeletes);
+    }
+
+    return results.sort((a, b) => b.expiresAt - a.expiresAt);
+  } catch (error) {
+    console.error("Ban listesi Firestore'dan okunamadi.", error);
+    return getBanList();
+  }
+}
+
+async function getRecentSessionListFromStore() {
+  if (!isFirestoreReady()) {
+    return getRecentSessionList();
+  }
+
+  try {
+    const snapshot = await getSessionsCollection().orderBy("lastSeen", "desc").limit(300).get();
+    const results = [];
+
+    recentUserSessions.clear();
+
+    snapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data() || {};
+      if (!data.uid) {
+        return;
+      }
+
+      const session = {
+        uid: data.uid,
+        username: typeof data.username === "string" ? data.username : "",
+        email: typeof data.email === "string" ? data.email : "",
+        ip: typeof data.ip === "string" ? data.ip : "",
+        lastSeen: typeof data.lastSeen === "number" ? data.lastSeen : Date.now()
+      };
+
+      recentUserSessions.set(session.uid, session);
+      results.push(session);
+    });
+
+    return results;
+  } catch (error) {
+    console.error("Recent session listesi Firestore'dan okunamadi.", error);
+    return getRecentSessionList();
   }
 }
 
@@ -146,7 +363,7 @@ function getBanRecord(ip) {
 
   if (record.expiresAt <= Date.now()) {
     bannedIps.delete(ip);
-    schedulePersistenceWrite();
+    void deleteBanFromPersistence(ip);
     return null;
   }
 
@@ -157,26 +374,25 @@ function isIpBanned(ip) {
   return Boolean(getBanRecord(ip));
 }
 
-function banIp(ip, reason) {
+async function banIp(ip, reason) {
   if (!ip) {
     return;
   }
 
-  bannedIps.set(ip, {
+  await persistBan(ip, {
     reason,
     expiresAt: Date.now() + BAN_DURATION_MS
   });
-  schedulePersistenceWrite();
 }
 
-function unbanIp(ip) {
+async function unbanIp(ip) {
   if (!ip) {
     return false;
   }
 
   const deleted = bannedIps.delete(ip);
   if (deleted) {
-    schedulePersistenceWrite();
+    await deleteBanFromPersistence(ip);
   }
   return deleted;
 }
@@ -276,7 +492,7 @@ async function verifyAdminRequest(request) {
   return authUser;
 }
 
-restorePersistentState();
+initializeFirestore();
 
 app.use((request, response, next) => {
   const ip = getRequestIp(request);
@@ -448,7 +664,7 @@ app.get("/api/admin/bans", async (request, response) => {
   try {
     await verifyAdminRequest(request);
     response.json({
-      bans: getBanList()
+      bans: await getBanListFromStore()
     });
   } catch (error) {
     response.status(403).json({
@@ -473,10 +689,10 @@ app.post("/api/admin/bans", async (request, response) => {
       return;
     }
 
-    banIp(ip, reason);
+    await banIp(ip, reason);
     response.json({
       ok: true,
-      bans: getBanList()
+      bans: await getBanListFromStore()
     });
   } catch (error) {
     response.status(403).json({
@@ -496,10 +712,10 @@ app.delete("/api/admin/bans/:ip", async (request, response) => {
       return;
     }
 
-    unbanIp(ip);
+    await unbanIp(ip);
     response.json({
       ok: true,
-      bans: getBanList()
+      bans: await getBanListFromStore()
     });
   } catch (error) {
     response.status(403).json({
@@ -512,7 +728,7 @@ app.get("/api/admin/recent-sessions", async (request, response) => {
   try {
     await verifyAdminRequest(request);
     response.json({
-      sessions: getRecentSessionList()
+      sessions: await getRecentSessionListFromStore()
     });
   } catch (error) {
     response.status(403).json({
@@ -536,14 +752,13 @@ app.post("/api/session-sync", async (request, response) => {
     const username =
       typeof request.body?.username === "string" ? request.body.username.trim().slice(0, 20) : "";
 
-    recentUserSessions.set(authUser.uid, {
+    await persistRecentSession({
       uid: authUser.uid,
       username,
       email: authUser.email || "",
       ip: getRequestIp(request),
       lastSeen: Date.now()
     });
-    schedulePersistenceWrite();
 
     response.json({
       ok: true
@@ -582,14 +797,13 @@ io.on("connection", (socket) => {
     try {
       const authUser = await verifyFirebaseIdToken(idToken.trim());
       authenticatedSockets.set(socket.id, authUser);
-      recentUserSessions.set(authUser.uid, {
+      await persistRecentSession({
         uid: authUser.uid,
         username: recentUserSessions.get(authUser.uid)?.username || "",
         email: authUser.email || "",
         ip: getSocketIp(socket),
         lastSeen: Date.now()
       });
-      schedulePersistenceWrite();
       socket.emit("authentication-result", {
         ok: true
       });
@@ -633,14 +847,13 @@ io.on("connection", (socket) => {
       gender
     });
 
-    recentUserSessions.set(uid, {
+    void persistRecentSession({
       uid,
       username,
       email: authUser.email || "",
       ip: getSocketIp(socket),
       lastSeen: Date.now()
     });
-    schedulePersistenceWrite();
 
     const partnerId = getPartnerId(socket.id);
     if (partnerId) {
@@ -728,7 +941,7 @@ io.on("connection", (socket) => {
       }
 
       const targetIp = getSocketIp(targetSocket);
-      banIp(targetIp, `Sexual severity ${result.severity}`);
+      await banIp(targetIp, `Sexual severity ${result.severity}`);
 
       targetSocket.emit("moderation-ban", {
         message: "Uygunsuz içerik nedeniyle erişimin geçici olarak engellendi."
@@ -758,6 +971,23 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+async function bootstrap() {
+  await restorePersistentState();
+
+  server.listen(PORT, () => {
+    if (isFirestoreReady()) {
+      console.log(`Server running on http://localhost:${PORT} (Firestore persistence active)`);
+      return;
+    }
+
+    const reason = firestoreInitError ? `: ${firestoreInitError.message}` : ".";
+    console.warn(
+      `Server running on http://localhost:${PORT} (Firestore persistence disabled${reason})`
+    );
+  });
+}
+
+bootstrap().catch((error) => {
+  console.error("Sunucu baslatilamadi.", error);
+  process.exit(1);
 });
