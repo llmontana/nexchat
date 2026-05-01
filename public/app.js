@@ -24,7 +24,7 @@ const premiumGirlButton = document.getElementById("premiumGirlButton");
 const premiumBoyButton = document.getElementById("premiumBoyButton");
 const clearPremiumFilterButton = document.getElementById("clearPremiumFilterButton");
 
-const rtcConfig = {
+let rtcConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" }
   ]
@@ -52,6 +52,30 @@ let currentVideoInputId = "";
 const DEFAULT_GIRL_FILTER_LABEL = "9 ◈";
 const DEFAULT_BOY_FILTER_LABEL = "5 ◈";
 let premiumChargeSettledForCurrentMatch = false;
+
+async function loadRtcConfig() {
+  try {
+    const response = await fetch("/api/rtc-config", {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error(`RTC config alinamadi (${response.status})`);
+    }
+
+    const data = await response.json();
+    if (data?.rtcConfig?.iceServers?.length) {
+      rtcConfig = data.rtcConfig;
+      logEvent(
+        data.turnEnabled
+          ? "TURN destekli baglanti ayarlari yuklendi."
+          : "STUN baglanti ayarlari yuklendi. TURN henuz aktif degil."
+      );
+    }
+  } catch (error) {
+    logEvent(`RTC ayarlari alinamadi, varsayilan STUN kullaniliyor: ${error.message}`);
+  }
+}
 
 function setLocalLabel(username) {
   localVideoLabel.textContent = username ? `${username} (Sen)` : "Sen";
@@ -376,6 +400,7 @@ function createPeerConnection() {
 
   connection.onconnectionstatechange = () => {
     const state = connection.connectionState;
+    logEvent(`Baglanti durumu: ${state}`);
 
     if (state === "failed" || state === "closed" || state === "disconnected") {
       isMatching = false;
@@ -390,6 +415,7 @@ function createPeerConnection() {
 
 async function requestPartner(filter = "any") {
   await ensureLocalMedia();
+  await loadRtcConfig();
   cleanupPeerConnection();
   politePeer = false;
   isMatching = true;
@@ -872,6 +898,7 @@ applyDeviceMode();
 syncMobileDrawerState();
 syncActionButtons();
 syncMobileTabs();
+loadRtcConfig();
 setLocalLabel("");
 setRemoteLabel("");
 window.addEventListener("resize", applyDeviceMode);

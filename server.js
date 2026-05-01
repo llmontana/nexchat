@@ -21,6 +21,16 @@ const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "nexchat-69594";
 const FIREBASE_CLIENT_EMAIL = process.env.FIREBASE_CLIENT_EMAIL || "";
 const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY || "";
 const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "";
+const TURN_URLS = (process.env.TURN_URLS || "")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
+const TURN_USERNAME = process.env.TURN_USERNAME || "";
+const TURN_CREDENTIAL = process.env.TURN_CREDENTIAL || "";
+const STUN_URLS = (process.env.STUN_URLS || "stun:stun.l.google.com:19302")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr72@gmail.com")
   .split(",")
   .map((item) => item.trim().toLocaleLowerCase("tr-TR"))
@@ -48,6 +58,29 @@ app.use(express.json({ limit: "2mb" }));
 
 function normalizePrivateKey(privateKey) {
   return privateKey ? privateKey.replace(/\\n/g, "\n") : "";
+}
+
+function buildRtcConfig() {
+  const iceServers = [];
+
+  if (STUN_URLS.length > 0) {
+    iceServers.push({
+      urls: STUN_URLS.length === 1 ? STUN_URLS[0] : STUN_URLS
+    });
+  }
+
+  if (TURN_URLS.length > 0 && TURN_USERNAME && TURN_CREDENTIAL) {
+    iceServers.push({
+      urls: TURN_URLS.length === 1 ? TURN_URLS[0] : TURN_URLS,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL
+    });
+  }
+
+  return {
+    iceServers,
+    iceTransportPolicy: "all"
+  };
 }
 
 function initializeFirestore() {
@@ -659,6 +692,13 @@ function canPairSockets(firstSocketId, secondSocketId) {
 }
 
 app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/api/rtc-config", (request, response) => {
+  response.json({
+    rtcConfig: buildRtcConfig(),
+    turnEnabled: TURN_URLS.length > 0 && Boolean(TURN_USERNAME && TURN_CREDENTIAL)
+  });
+});
 
 app.get("/api/admin/bans", async (request, response) => {
   try {
