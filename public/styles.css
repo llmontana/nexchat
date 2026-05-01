@@ -599,6 +599,157 @@ body.is-desktop .diamond-count-badge {
   width: 100%;
 }
 
+.payment-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.payment-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 8, 16, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.payment-modal-sheet {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(43, 241, 183, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 88, 181, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(14, 20, 31, 0.96), rgba(11, 16, 26, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+}
+
+.payment-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.payment-modal-header h3 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.payment-modal-close {
+  min-height: 42px;
+  padding: 10px 16px;
+}
+
+.payment-packages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.payment-package-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.payment-package-card.featured {
+  background:
+    radial-gradient(circle at top left, rgba(43, 241, 183, 0.14), transparent 36%),
+    linear-gradient(170deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
+  border-color: rgba(106, 184, 255, 0.2);
+  box-shadow: 0 18px 32px rgba(51, 125, 255, 0.12);
+}
+
+.payment-package-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.payment-package-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payment-package-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.payment-package-diamond {
+  min-width: 62px;
+  height: 62px;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background-image: var(--rainbow);
+  background-size: 280% 280%;
+  animation: rainbow-shift 8s linear infinite;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.payment-package-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.88rem;
+}
+
+.payment-package-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.payment-package-price {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.payment-package-button {
+  min-height: 42px;
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+
+.payment-modal-status {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.payment-modal-status.error {
+  color: #ff9e9e;
+  border-color: rgba(255, 108, 108, 0.24);
+  background: rgba(255, 88, 88, 0.08);
+}
+
 .friends-header {
   display: flex;
   align-items: flex-start;
@@ -1799,6 +1950,10 @@ body.is-mobile.mobile-controls-collapsed .video-placeholder {
 }
 
 @media (max-width: 1100px) {
+  .payment-packages {
+    grid-template-columns: 1fr;
+  }
+
   .admin-shell {
     grid-template-columns: 1fr;
   }
@@ -1806,5 +1961,23 @@ body.is-mobile.mobile-controls-collapsed .video-placeholder {
   .admin-stats-grid,
   .admin-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .payment-modal {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .payment-modal-sheet {
+    width: 100%;
+    max-height: 88vh;
+    border-radius: 24px 24px 0 0;
+    padding: 18px;
+  }
+
+  .payment-modal-header h3 {
+    font-size: 1.35rem;
   }
 }

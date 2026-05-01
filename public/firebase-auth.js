@@ -77,6 +77,11 @@ const diamondCountBadge = document.getElementById("diamondCountBadge");
 const buyDiamondsButton = document.getElementById("buyDiamondsButton");
 const premiumGirlButton = document.getElementById("premiumGirlButton");
 const premiumBoyButton = document.getElementById("premiumBoyButton");
+const paymentModal = document.getElementById("paymentModal");
+const paymentModalBackdrop = document.getElementById("paymentModalBackdrop");
+const paymentModalClose = document.getElementById("paymentModalClose");
+const paymentModalStatus = document.getElementById("paymentModalStatus");
+const paymentPackages = document.getElementById("paymentPackages");
 
 let authMode = "login";
 const googleProvider = new GoogleAuthProvider();
@@ -106,6 +111,9 @@ const PRESENCE_ONLINE_WINDOW_MS = 90000;
 const friendPresenceMap = new Map();
 const friendPresenceUnsubscribers = new Map();
 let presenceHeartbeatTimer = null;
+const DIAMOND_PACKAGES = Array.isArray(window.NEXCHAT_PAYMENT_PACKAGES)
+  ? window.NEXCHAT_PAYMENT_PACKAGES
+  : [];
 
 function setAuthStatus(text, isError = false) {
   authStatus.textContent = text;
@@ -127,6 +135,87 @@ function updateDiamondUi(amount = 0) {
   if (premiumBoyButton) {
     premiumBoyButton.disabled = safeAmount < PREMIUM_FILTER_COSTS.erkek;
   }
+}
+
+function setPaymentStatus(text, isError = false) {
+  if (!paymentModalStatus) {
+    return;
+  }
+
+  paymentModalStatus.textContent = text;
+  paymentModalStatus.classList.toggle("error", isError);
+}
+
+function closePaymentModal() {
+  paymentModal.classList.add("hidden");
+  paymentModal.setAttribute("aria-hidden", "true");
+}
+
+function renderPaymentPackages() {
+  if (!paymentPackages) {
+    return;
+  }
+
+  if (!DIAMOND_PACKAGES.length) {
+    paymentPackages.innerHTML = `
+      <article class="payment-package-card">
+        <strong>Henüz paket tanımlanmadı</strong>
+        <p>Ödeme linklerini <code>public/payment-config.js</code> içine eklemen gerekiyor.</p>
+      </article>
+    `;
+    return;
+  }
+
+  paymentPackages.innerHTML = DIAMOND_PACKAGES.map((pkg, index) => {
+    const featuredClass = index === 1 ? " featured" : "";
+    return `
+      <article class="payment-package-card${featuredClass}">
+        <div class="payment-package-top">
+          <div>
+            <h4 class="payment-package-title">${pkg.title}</h4>
+          </div>
+          <div class="payment-package-diamond">${pkg.diamonds}<br>◈</div>
+        </div>
+        <p>${pkg.description || ""}</p>
+        <div class="payment-package-footer">
+          <div class="payment-package-price">${pkg.priceLabel || "-"}</div>
+          <button
+            class="primary-button payment-package-button"
+            type="button"
+            data-package-id="${pkg.id}"
+          >
+            Ödemeye Geç
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function openPaymentModal() {
+  renderPaymentPackages();
+  setPaymentStatus("Bir paket seçip güvenli ödeme sayfasına geçebilirsin.");
+  paymentModal.classList.remove("hidden");
+  paymentModal.setAttribute("aria-hidden", "false");
+}
+
+function redirectToCheckout(packageId) {
+  const selectedPackage = DIAMOND_PACKAGES.find((pkg) => pkg.id === packageId);
+  if (!selectedPackage) {
+    setPaymentStatus("Seçilen paket bulunamadı.", true);
+    return;
+  }
+
+  if (!selectedPackage.checkoutUrl) {
+    setPaymentStatus(
+      `${selectedPackage.title} için ödeme linki henüz tanımlanmadı. payment-config.js dosyasına checkoutUrl ekle.`,
+      true
+    );
+    return;
+  }
+
+  setPaymentStatus(`${selectedPackage.title} için ödeme sayfasına yönlendiriliyorsun...`);
+  window.location.href = selectedPackage.checkoutUrl;
 }
 
 function openChatPanel() {
@@ -1045,7 +1134,24 @@ for (const button of [genderGirlButton, genderBoyButton]) {
 }
 
 buyDiamondsButton.addEventListener("click", () => {
-  setAuthStatus("Elmas satin alma ekrani yakinda aktif olacak.");
+  openPaymentModal();
+});
+
+paymentModalClose.addEventListener("click", () => {
+  closePaymentModal();
+});
+
+paymentModalBackdrop.addEventListener("click", () => {
+  closePaymentModal();
+});
+
+paymentPackages.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-package-id]");
+  if (!button) {
+    return;
+  }
+
+  redirectToCheckout(button.dataset.packageId);
 });
 
 closeChatButton.addEventListener("click", () => {
