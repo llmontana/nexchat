@@ -194,7 +194,20 @@ function renderUsersList() {
       return `
         <article class="admin-user-item">
           <div class="admin-user-main">
-            <strong>${escapeHtml(user.username || "İsimsiz")}</strong>
+            <strong>
+              ${escapeHtml(user.username || "İsimsiz")}
+              <button
+                class="admin-delete-user-button"
+                type="button"
+                title="Hesabı sil"
+                aria-label="Hesabı sil"
+                data-action="delete-user"
+                data-uid="${escapeHtml(user.uid || "")}"
+                data-username="${escapeHtml(user.username || "İsimsiz")}"
+              >
+                ×
+              </button>
+            </strong>
             <span>${escapeHtml(user.email || "E-posta yok")}</span>
             <span>${escapeHtml(userIpLabel)}</span>
           </div>
@@ -397,6 +410,12 @@ async function removeIpBan(ip) {
   renderBanList();
 }
 
+async function deleteUserByAdmin(uid) {
+  await callAdminApi(`/api/admin/users/${encodeURIComponent(uid)}`, {
+    method: "DELETE"
+  });
+}
+
 async function signInWithProvider() {
   setAuthBusy(true);
   setStatus("Google ile giriş yapılıyor...");
@@ -457,6 +476,19 @@ adminUsersList.addEventListener("click", async (event) => {
       await updateUserDiamonds(uid, value);
       await loadDashboard();
       setPanelStatus("Elmas bakiyesi güncellendi");
+    } else if (button.dataset.action === "delete-user") {
+      const uid = button.dataset.uid || "";
+      const username = button.dataset.username || "İsimsiz";
+      const confirmed = window.confirm(
+        `${username} hesabını tamamen silmek istediğine emin misin? Bu işlem geri alınamaz.`
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      await deleteUserByAdmin(uid);
+      await loadDashboard();
+      setPanelStatus("Kullanıcı hesabı silindi");
     } else if (button.dataset.action === "ban-ip") {
       const ip = button.dataset.ip || "";
       if (ip && !isIpCurrentlyBanned(ip)) {

@@ -50,6 +50,7 @@ const authModeButton = document.getElementById("authModeButton");
 const authStatus = document.getElementById("authStatus");
 const logoutButton = document.getElementById("logoutButton");
 const sessionBadge = document.getElementById("sessionBadge");
+const adminPortalButton = document.getElementById("adminPortalButton");
 const googleLoginButton = document.getElementById("googleLoginButton");
 const usernameOverlay = document.getElementById("usernameOverlay");
 const usernameForm = document.getElementById("usernameForm");
@@ -135,6 +136,17 @@ function updateDiamondUi(amount = 0) {
   if (premiumBoyButton) {
     premiumBoyButton.disabled = safeAmount < PREMIUM_FILTER_COSTS.erkek;
   }
+}
+
+function syncAdminPortalButton() {
+  if (!adminPortalButton) {
+    return;
+  }
+
+  const shouldShow = Boolean(
+    currentUserProfile?.isAdmin && !document.body.classList.contains("is-mobile")
+  );
+  adminPortalButton.classList.toggle("hidden", !shouldShow);
 }
 
 function setPaymentStatus(text, isError = false) {
@@ -820,11 +832,6 @@ async function finalizeSignedInUser(user, existingProfile) {
     isAdmin: Boolean(existingProfile?.isAdmin || isAdminEmail(user.email || ""))
   };
 
-  if (currentUserProfile.isAdmin && !window.location.pathname.endsWith(ADMIN_PANEL_PATH)) {
-    window.location.replace(ADMIN_PANEL_PATH);
-    return;
-  }
-
   try {
     await syncSessionPresence(user, username);
   } catch (error) {
@@ -850,6 +857,7 @@ async function finalizeSignedInUser(user, existingProfile) {
     };
     sessionBadge.textContent = `${currentUserProfile.username} @ ${user.email || "aktif"}`;
     updateDiamondUi(currentUserProfile.diamonds);
+    syncAdminPortalButton();
     notifyUserProfileUpdated();
   });
 
@@ -857,6 +865,7 @@ async function finalizeSignedInUser(user, existingProfile) {
   authOverlay.classList.add("hidden");
   sessionBadge.textContent = `${username} @ ${user.email || "aktif"}`;
   logoutButton.disabled = false;
+  syncAdminPortalButton();
   setAuthStatus("Giriş başarılı");
   window.dispatchEvent(
     new CustomEvent("auth-state", {
@@ -1137,6 +1146,10 @@ buyDiamondsButton.addEventListener("click", () => {
   openPaymentModal();
 });
 
+adminPortalButton.addEventListener("click", () => {
+  window.location.href = ADMIN_PANEL_PATH;
+});
+
 paymentModalClose.addEventListener("click", () => {
   closePaymentModal();
 });
@@ -1306,6 +1319,7 @@ onAuthStateChanged(auth, async (user) => {
       const existingProfile = await ensureUserProfile(user);
       document.body.classList.add("is-authenticated");
       await finalizeSignedInUser(user, existingProfile);
+      syncAdminPortalButton();
     } catch (error) {
       setAuthStatus(error.message, true);
     }
@@ -1321,6 +1335,7 @@ onAuthStateChanged(auth, async (user) => {
   document.body.classList.remove("is-authenticated");
   sessionBadge.textContent = "Giriş yapılmadı";
   logoutButton.disabled = true;
+  adminPortalButton.classList.add("hidden");
   authPassword.value = "";
   usernameInput.value = "";
   genderInput.value = "";
@@ -1350,6 +1365,10 @@ onAuthStateChanged(auth, async (user) => {
       }
     })
   );
+});
+
+window.addEventListener("resize", () => {
+  syncAdminPortalButton();
 });
 
 window.addEventListener("mobile-tab-change", ({ detail }) => {

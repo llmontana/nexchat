@@ -3,6 +3,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const { initializeApp, applicationDefault, cert, getApps } = require("firebase-admin/app");
+const { getAuth: getAdminAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 const app = express();
@@ -50,6 +51,7 @@ const FIRESTORE_COLLECTIONS = {
   bans: "server_ip_bans"
 };
 let adminFirestore = null;
+let adminAuth = null;
 let firestoreReady = false;
 let firestoreInitError = null;
 
@@ -116,6 +118,7 @@ function initializeFirestore() {
     }
 
     adminFirestore = getFirestore();
+    adminAuth = getAdminAuth();
     firestoreReady = true;
   } catch (error) {
     firestoreReady = false;
@@ -138,6 +141,10 @@ function getSessionsCollection() {
 
 function getBansCollection() {
   return adminFirestore.collection(FIRESTORE_COLLECTIONS.bans);
+}
+
+function getConversationId(uidA, uidB) {
+  return [uidA, uidB].sort().join("__");
 }
 
 function createSessionPayload(session) {
@@ -368,6 +375,143 @@ async function getRecentSessionListFromStore() {
   } catch (error) {
     console.error("Recent session listesi Firestore'dan okunamadi.", error);
     return getRecentSessionList();
+  }
+}
+
+async function commitDeleteOperations(operations) {
+  if (!operations.length) {
+    return;
+  }
+
+  const chunkSize = 400;
+  for (let index = 0; index < operations.length; index += chunkSize) {
+    const batch = adminFirestore.batch();
+    operations.slice(index, index + chunkSize).forEach((ref) => {
+      batch.delete(ref);
+    });
+    await batch.commit();
+  }
+}
+
+async function recursiveDeleteDocument(ref) {
+  if (!ref) {
+    return;
+  }
+
+  try {
+    await adminFirestore.recursiveDelete(ref);
+  } catch (error) {
+    try {
+      await ref.delete();
+    } catch {
+      console.error("Belge silinemedi.", error);
+    }
+  }
+}
+
+async function deleteUserAccount(uid, actingAdminUid) {
+  if (!isFirestoreReady()) {
+    throw new Error("Firestore hazir degil.");
+  }
+
+  if (!adminAuth) {
+    throw new Error("Admin auth hazir degil.");
+  }
+
+  if (!uid) {
+    throw new Error("Gecerli bir kullanici gerekli.");
+  }
+
+  if (uid === actingAdminUid) {
+    throw new Error("Kendi admin hesabini bu panelden silemezsin.");
+  }
+
+  const userRef = adminFirestore.collection("users").doc(uid);
+  const [userSnapshot, friendsSnapshot, incomingSnapshot, outgoingSnapshot] = await Promise.all([
+    userRef.get(),
+    userRef.collection("friends").get(),
+    userRef.collection("incomingRequests").get(),
+    userRef.collection("outgoingRequests").get()
+  ]);
+
+  if (!userSnapshot.exists) {
+    throw new Error("Silinecek kullanici bulunamadi.");
+  }
+
+  const relatedUids = new Set();
+  const deleteRefs = [];
+
+  friendsSnapshot.forEach((docSnapshot) => {
+    const relatedUid = docSnapshot.id;
+    relatedUids.add(relatedUid);
+    deleteRefs.push(docSnapshot.ref);
+    deleteRefs.push(
+      adminFirestore.collection("users").doc(relatedUid).collection("friends").doc(uid)
+    );
+  });
+
+  incomingSnapshot.forEach((docSnapshot) => {
+    const relatedUid = docSnapshot.id;
+    relatedUids.add(relatedUid);
+    deleteRefs.push(docSnapshot.ref);
+    deleteRefs.push(
+      adminFirestore.collection("users").doc(relatedUid).collection("outgoingRequests").doc(uid)
+    );
+  });
+
+  outgoingSnapshot.forEach((docSnapshot) => {
+    const relatedUid = docSnapshot.id;
+    relatedUids.add(relatedUid);
+    deleteRefs.push(docSnapshot.ref);
+    deleteRefs.push(
+      adminFirestore.collection("users").doc(relatedUid).collection("incomingRequests").doc(uid)
+    );
+  });
+
+  await commitDeleteOperations(deleteRefs);
+
+  const conversationDeletes = [];
+  for (const relatedUid of relatedUids) {
+    const conversationId = getConversationId(uid, relatedUid);
+    conversationDeletes.push(
+      recursiveDeleteDocument(adminFirestore.collection("conversations").doc(conversationId))
+    );
+  }
+
+  await Promise.all(conversationDeletes);
+  await recursiveDeleteDocument(userRef);
+
+  recentUserSessions.delete(uid);
+  try {
+    await getSessionsCollection().doc(uid).delete();
+  } catch {}
+
+  for (const [socketId, authUser] of authenticatedSockets.entries()) {
+    if (authUser?.uid !== uid) {
+      continue;
+    }
+
+    const userSocket = io.sockets.sockets.get(socketId);
+    if (userSocket) {
+      leaveConversation(userSocket, false);
+      userSocket.emit("moderation-ban", {
+        message: "Hesabin yonetici tarafindan kapatildi."
+      });
+      userSocket.disconnect(true);
+    }
+
+    authenticatedSockets.delete(socketId);
+    socketProfiles.delete(socketId);
+    matchPreferences.delete(socketId);
+    lastPartnerBySocket.delete(socketId);
+  }
+
+  try {
+    await adminAuth.deleteUser(uid);
+  } catch (error) {
+    if (error?.code !== "auth/user-not-found") {
+      throw error;
+    }
   }
 }
 
@@ -759,6 +903,29 @@ app.delete("/api/admin/bans/:ip", async (request, response) => {
     });
   } catch (error) {
     response.status(403).json({
+      message: error.message
+    });
+  }
+});
+
+app.delete("/api/admin/users/:uid", async (request, response) => {
+  try {
+    const adminUser = await verifyAdminRequest(request);
+    const uid = typeof request.params.uid === "string" ? request.params.uid.trim() : "";
+
+    if (!uid) {
+      response.status(400).json({
+        message: "Gecerli bir kullanici gerekli."
+      });
+      return;
+    }
+
+    await deleteUserAccount(uid, adminUser.uid);
+    response.json({
+      ok: true
+    });
+  } catch (error) {
+    response.status(400).json({
       message: error.message
     });
   }

@@ -285,6 +285,21 @@ body.is-authenticated #sessionBadge {
   display: none;
 }
 
+.admin-portal-button {
+  width: fit-content;
+  min-height: 40px;
+  padding: 10px 16px;
+  background:
+    linear-gradient(135deg, rgba(43, 241, 183, 0.12), rgba(104, 168, 255, 0.14)),
+    rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(104, 168, 255, 0.18);
+  color: var(--text);
+}
+
+body.is-mobile .admin-portal-button {
+  display: none !important;
+}
+
 .controls,
 .device-controls {
   display: flex;
@@ -1858,7 +1873,9 @@ body.is-mobile.mobile-controls-collapsed .video-placeholder {
 
 .admin-user-item strong,
 .admin-recent-item strong {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 4px;
 }
 
@@ -1910,6 +1927,25 @@ body.is-mobile.mobile-controls-collapsed .video-placeholder {
   min-height: 38px;
   padding: 8px 12px;
   font-size: 0.78rem;
+}
+
+.admin-delete-user-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 89, 89, 0.12);
+  border: 1px solid rgba(255, 89, 89, 0.22);
+  color: #ff7a7a;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.admin-delete-user-button:hover {
+  background: rgba(255, 89, 89, 0.18);
+  color: #ff9c9c;
 }
 
 .admin-ban-list {
