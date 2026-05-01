@@ -11,10 +11,6 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
-const CONTENT_SAFETY_ENDPOINT = process.env.CONTENT_SAFETY_ENDPOINT;
-const CONTENT_SAFETY_KEY = process.env.CONTENT_SAFETY_KEY;
-const CONTENT_SAFETY_API_VERSION = process.env.CONTENT_SAFETY_API_VERSION || "2024-09-15-preview";
-const SEXUAL_SEVERITY_THRESHOLD = Number(process.env.SEXUAL_SEVERITY_THRESHOLD || 4);
 const BAN_DURATION_MS = Number(process.env.BAN_DURATION_MS || 24 * 60 * 60 * 1000);
 const FIREBASE_WEB_API_KEY =
   process.env.FIREBASE_WEB_API_KEY || "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs";
@@ -32,7 +28,7 @@ const STUN_URLS = (process.env.STUN_URLS || "stun:stun.l.google.com:19302")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr72@gmail.com")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr7@gmail.com")
   .split(",")
   .map((item) => item.trim().toLocaleLowerCase("tr-TR"))
   .filter(Boolean);
@@ -48,7 +44,8 @@ const rtcSignalEvents = new Set(["webrtc-offer", "webrtc-answer", "webrtc-ice-ca
 const bannedIps = new Map();
 const FIRESTORE_COLLECTIONS = {
   sessions: "server_recent_sessions",
-  bans: "server_ip_bans"
+  bans: "server_ip_bans",
+  reports: "server_reports"
 };
 let adminFirestore = null;
 let adminAuth = null;
@@ -141,6 +138,10 @@ function getSessionsCollection() {
 
 function getBansCollection() {
   return adminFirestore.collection(FIRESTORE_COLLECTIONS.bans);
+}
+
+function getReportsCollection() {
+  return adminFirestore.collection(FIRESTORE_COLLECTIONS.reports);
 }
 
 function getConversationId(uidA, uidB) {
@@ -378,6 +379,55 @@ async function getRecentSessionListFromStore() {
   }
 }
 
+async function createReportRecord(payload) {
+  if (!isFirestoreReady()) {
+    return null;
+  }
+
+  const createdAt = Date.now();
+  const docRef = await getReportsCollection().add({
+    ...payload,
+    createdAt,
+    updatedAt: FieldValue.serverTimestamp()
+  });
+
+  return {
+    id: docRef.id,
+    createdAt
+  };
+}
+
+async function updateReportRecord(reportId, payload) {
+  if (!isFirestoreReady() || !reportId) {
+    return;
+  }
+
+  await getReportsCollection().doc(reportId).set(
+    {
+      ...payload,
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
+async function getReportsListFromStore() {
+  if (!isFirestoreReady()) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getReportsCollection().orderBy("createdAt", "desc").limit(100).get();
+    return snapshot.docs.map((docSnapshot) => ({
+      id: docSnapshot.id,
+      ...docSnapshot.data()
+    }));
+  } catch (error) {
+    console.error("Rapor listesi Firestore'dan okunamadi.", error);
+    return [];
+  }
+}
+
 async function commitDeleteOperations(operations) {
   if (!operations.length) {
     return;
@@ -580,46 +630,6 @@ function isAdminEmail(email) {
   }
 
   return ADMIN_EMAILS.includes(email.trim().toLocaleLowerCase("tr-TR"));
-}
-
-async function analyzeImageForNudity(base64Image) {
-  if (!CONTENT_SAFETY_ENDPOINT || !CONTENT_SAFETY_KEY) {
-    throw new Error("Content Safety servisi ayarlanmamis.");
-  }
-
-  const endpoint = CONTENT_SAFETY_ENDPOINT.replace(/\/$/, "");
-  const response = await fetch(
-    `${endpoint}/contentsafety/image:analyze?api-version=${CONTENT_SAFETY_API_VERSION}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Ocp-Apim-Subscription-Key": CONTENT_SAFETY_KEY
-      },
-      body: JSON.stringify({
-        image: {
-          content: base64Image
-        },
-        categories: ["Sexual"]
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Content Safety hatasi: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  const sexualCategory = Array.isArray(data.categoriesAnalysis)
-    ? data.categoriesAnalysis.find((item) => item.category === "Sexual")
-    : null;
-  const severity = typeof sexualCategory?.severity === "number" ? sexualCategory.severity : 0;
-
-  return {
-    flagged: severity >= SEXUAL_SEVERITY_THRESHOLD,
-    severity
-  };
 }
 
 async function verifyFirebaseIdToken(idToken) {
@@ -944,6 +954,19 @@ app.get("/api/admin/recent-sessions", async (request, response) => {
   }
 });
 
+app.get("/api/admin/reports", async (request, response) => {
+  try {
+    await verifyAdminRequest(request);
+    response.json({
+      reports: await getReportsListFromStore()
+    });
+  } catch (error) {
+    response.status(403).json({
+      message: error.message
+    });
+  }
+});
+
 app.post("/api/session-sync", async (request, response) => {
   try {
     const authHeader = request.headers.authorization || "";
@@ -1135,31 +1158,31 @@ io.on("connection", (socket) => {
     }
 
     try {
-      const normalizedImage = imageData.replace(/^data:image\/\w+;base64,/, "");
-      const result = await analyzeImageForNudity(normalizedImage);
-
-      if (!result.flagged) {
-        socket.emit("report-result", {
-          ok: true,
-          actionTaken: false,
-          message: `İnceleme tamamlandı. Sexual severity: ${result.severity}.`
-        });
-        return;
-      }
-
-      const targetIp = getSocketIp(targetSocket);
-      await banIp(targetIp, `Sexual severity ${result.severity}`);
-
-      targetSocket.emit("moderation-ban", {
-        message: "Uygunsuz içerik nedeniyle erişimin geçici olarak engellendi."
+      const reporterAuth = authenticatedSockets.get(socket.id);
+      const reportedAuth = authenticatedSockets.get(partnerId);
+      const reporterProfile = socketProfiles.get(socket.id);
+      const reportedProfile = socketProfiles.get(partnerId);
+      await createReportRecord({
+        reporter: {
+          uid: reporterProfile?.uid || reporterAuth?.uid || "",
+          username: reporterProfile?.username || "",
+          email: reporterAuth?.email || ""
+        },
+        reported: {
+          uid: reportedProfile?.uid || reportedAuth?.uid || "",
+          username: reportedProfile?.username || "",
+          email: reportedAuth?.email || ""
+        },
+        imageData,
+        status: "pending",
+        reviewSource: "manual",
+        severity: null
       });
-      leaveConversation(targetSocket, false);
-      targetSocket.disconnect(true);
 
       socket.emit("report-result", {
         ok: true,
-        actionTaken: true,
-        message: `Rapor doğrulandı. Kullanıcı engellendi. Sexual severity: ${result.severity}.`
+        actionTaken: false,
+        message: "Rapor admin paneline gonderildi. Inceleme manuel yapilacak."
       });
     } catch (error) {
       socket.emit("report-result", {

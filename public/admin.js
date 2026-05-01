@@ -54,11 +54,13 @@ const adminUserSearch = document.getElementById("adminUserSearch");
 const adminUsersList = document.getElementById("adminUsersList");
 const adminRecentList = document.getElementById("adminRecentList");
 const adminBanList = document.getElementById("adminBanList");
+const adminReportsList = document.getElementById("adminReportsList");
 
 let allUsers = [];
 let currentAdminToken = "";
 let recentSessions = [];
 let activeBans = [];
+let recentReports = [];
 
 function setStatus(text, isError = false) {
   adminAuthStatus.textContent = text;
@@ -307,6 +309,57 @@ function renderBanList() {
     .join("");
 }
 
+function renderReportsList() {
+  if (!recentReports.length) {
+    adminReportsList.innerHTML = '<article class="admin-empty">Henüz rapor kaydı yok.</article>';
+    return;
+  }
+
+  adminReportsList.innerHTML = recentReports
+    .map((report) => {
+      const statusMap = {
+        pending: "Bekliyor",
+        reviewed: "İncelendi",
+        error: "Hata"
+      };
+
+      const reporterName = report.reporter?.username || report.reporter?.email || "Bilinmiyor";
+      const reportedName = report.reported?.username || report.reported?.email || "Bilinmiyor";
+      const createdAt = report.createdAt ? formatDate(new Date(report.createdAt)) : "Bilinmiyor";
+      const severityLabel =
+        typeof report.severity === "number" ? ` · Seviye ${report.severity}` : "";
+
+      return `
+        <article class="admin-report-item">
+          <div class="admin-report-thumb-wrap">
+            ${
+              report.imageData
+                ? `<img class="admin-report-thumb" src="${escapeHtml(report.imageData)}" alt="Rapor görüntüsü" />`
+                : `<div class="admin-report-thumb admin-report-thumb-empty">Görüntü yok</div>`
+            }
+          </div>
+          <div class="admin-report-main">
+            <div class="admin-report-top">
+              <strong>${escapeHtml(reportedName)}</strong>
+              <span class="admin-report-status admin-report-status-${escapeHtml(report.status || "pending")}">
+                ${escapeHtml(statusMap[report.status] || "Bilinmiyor")}${escapeHtml(severityLabel)}
+              </span>
+            </div>
+            <span>Raporlayan: ${escapeHtml(reporterName)}</span>
+            <span>Raporlanan: ${escapeHtml(reportedName)}</span>
+            <span>Tarih: ${escapeHtml(createdAt)}</span>
+            ${
+              report.errorMessage
+                ? `<span>Hata: ${escapeHtml(report.errorMessage)}</span>`
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderStats() {
   const totalUsers = allUsers.length;
   const girls = allUsers.filter((user) => user.gender === "kiz").length;
@@ -350,9 +403,10 @@ async function loadDashboard() {
   );
   allUsers = snapshot.docs.map((item) => item.data());
 
-  const [sessionsResult, bansResult] = await Promise.allSettled([
+  const [sessionsResult, bansResult, reportsResult] = await Promise.allSettled([
     callAdminApi("/api/admin/recent-sessions"),
-    callAdminApi("/api/admin/bans")
+    callAdminApi("/api/admin/bans"),
+    callAdminApi("/api/admin/reports")
   ]);
 
   recentSessions =
@@ -363,13 +417,22 @@ async function loadDashboard() {
     bansResult.status === "fulfilled" && Array.isArray(bansResult.value.bans)
       ? bansResult.value.bans
       : [];
+  recentReports =
+    reportsResult.status === "fulfilled" && Array.isArray(reportsResult.value.reports)
+      ? reportsResult.value.reports
+      : [];
 
   renderStats();
   renderUsersList();
   renderRecentList();
   renderBanList();
+  renderReportsList();
 
-  if (sessionsResult.status === "rejected" || bansResult.status === "rejected") {
+  if (
+    sessionsResult.status === "rejected" ||
+    bansResult.status === "rejected" ||
+    reportsResult.status === "rejected"
+  ) {
     setPanelStatus("Verilerin bir kısmı yüklenemedi");
     return;
   }

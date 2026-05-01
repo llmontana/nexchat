@@ -668,8 +668,8 @@ reportButton.addEventListener("click", () => {
 
   reportInFlight = true;
   syncActionButtons();
-  setStatus("Rapor inceleniyor...");
-  logEvent("Rapor AI moderasyonuna gonderildi.");
+  setStatus("Rapor gönderiliyor...");
+  logEvent("Rapor admin incelemesi için gönderildi.");
   socket.emit("report-user", { imageData });
 });
 
@@ -769,12 +769,6 @@ socket.on("report-result", ({ ok, actionTaken, message }) => {
   syncActionButtons();
   setStatus(ok ? "Rapor tamamlandı" : "Rapor hatası");
   logEvent(message || (actionTaken ? "Kullanıcı engellendi." : "Rapor tamamlandı."));
-});
-
-socket.on("moderation-ban", ({ message }) => {
-  cleanupPeerConnection();
-  setStatus("Erişim engellendi");
-  logEvent(message || "Uygunsuz içerik nedeniyle erişim engellendi.");
 });
 
 socket.on("partner-profile", (profile) => {
