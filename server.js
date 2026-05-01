@@ -18,6 +18,12 @@ const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "nexchat-69594";
 const FIREBASE_CLIENT_EMAIL = process.env.FIREBASE_CLIENT_EMAIL || "";
 const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY || "";
 const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "";
+const CLOUDFLARE_TURN_KEY_ID = process.env.CLOUDFLARE_TURN_KEY_ID || "";
+const CLOUDFLARE_TURN_API_TOKEN = process.env.CLOUDFLARE_TURN_API_TOKEN || "";
+const CLOUDFLARE_TURN_TTL = Math.min(
+  Number(process.env.CLOUDFLARE_TURN_TTL || 3600),
+  48 * 60 * 60
+);
 const TURN_URLS = (process.env.TURN_URLS || "")
   .split(",")
   .map((item) => item.trim())
@@ -79,6 +85,49 @@ function buildRtcConfig() {
   return {
     iceServers,
     iceTransportPolicy: "all"
+  };
+}
+
+function hasCloudflareTurnConfig() {
+  return Boolean(CLOUDFLARE_TURN_KEY_ID && CLOUDFLARE_TURN_API_TOKEN);
+}
+
+async function getCloudflareRtcConfig() {
+  const response = await fetch(
+    `https://rtc.live.cloudflare.com/v1/turn/keys/${CLOUDFLARE_TURN_KEY_ID}/credentials/generate-ice-servers`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${CLOUDFLARE_TURN_API_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ttl: CLOUDFLARE_TURN_TTL
+      })
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      data?.errors?.[0]?.message ||
+      data?.result?.errors?.[0]?.message ||
+      `Cloudflare TURN hatasi (${response.status})`;
+    throw new Error(message);
+  }
+
+  const iceServers = Array.isArray(data?.iceServers) ? data.iceServers : [];
+  return {
+    rtcConfig: {
+      iceServers,
+      iceTransportPolicy: "all"
+    },
+    turnEnabled: iceServers.some((server) =>
+      []
+        .concat(server?.urls || [])
+        .some((url) => typeof url === "string" && url.startsWith("turn"))
+    ),
+    provider: "cloudflare"
   };
 }
 
@@ -847,11 +896,27 @@ function canPairSockets(firstSocketId, secondSocketId) {
 
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/api/rtc-config", (request, response) => {
-  response.json({
-    rtcConfig: buildRtcConfig(),
-    turnEnabled: TURN_URLS.length > 0 && Boolean(TURN_USERNAME && TURN_CREDENTIAL)
-  });
+app.get("/api/rtc-config", async (request, response) => {
+  try {
+    if (hasCloudflareTurnConfig()) {
+      const config = await getCloudflareRtcConfig();
+      response.json(config);
+      return;
+    }
+
+    response.json({
+      rtcConfig: buildRtcConfig(),
+      turnEnabled: TURN_URLS.length > 0 && Boolean(TURN_USERNAME && TURN_CREDENTIAL),
+      provider: TURN_URLS.length > 0 ? "custom" : "stun-only"
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: error.message,
+      rtcConfig: buildRtcConfig(),
+      turnEnabled: TURN_URLS.length > 0 && Boolean(TURN_USERNAME && TURN_CREDENTIAL),
+      provider: "fallback"
+    });
+  }
 });
 
 app.get("/api/admin/bans", async (request, response) => {

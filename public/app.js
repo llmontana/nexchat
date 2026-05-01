@@ -68,8 +68,8 @@ async function loadRtcConfig() {
       rtcConfig = data.rtcConfig;
       logEvent(
         data.turnEnabled
-          ? "TURN destekli baglanti ayarlari yuklendi."
-          : "STUN baglanti ayarlari yuklendi. TURN henuz aktif degil."
+          ? `TURN destekli baglanti ayarlari yuklendi (${data.provider || "bilinmeyen"}).`
+          : `STUN baglanti ayarlari yuklendi (${data.provider || "stun-only"}). TURN henuz aktif degil.`
       );
     }
   } catch (error) {
