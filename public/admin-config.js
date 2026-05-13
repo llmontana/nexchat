@@ -1,9 +1,11 @@
-export const ADMIN_EMAILS = ["sametyesr7@gmail.com"];
-
-export function isAdminEmail(email) {
-  if (typeof email !== "string") {
+export async function checkIsAdmin(idToken) {
+  try {
+    const response = await fetch("/api/admin/check", {
+      headers: { Authorization: `Bearer ${idToken}` }
+    });
+    const data = await response.json();
+    return Boolean(data?.isAdmin);
+  } catch {
     return false;
   }
- 
-  return ADMIN_EMAILS.includes(email.trim().toLocaleLowerCase("tr-TR"));
 }

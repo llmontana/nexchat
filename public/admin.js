@@ -18,7 +18,7 @@ import {
   doc,
   setDoc
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import { isAdminEmail } from "./admin-config.js";
+import { checkIsAdmin } from "./admin-config.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs",
@@ -376,7 +376,8 @@ async function ensureUserProfile(user) {
   const userRef = doc(db, "users", user.uid);
   const userSnapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
   const existing = userSnapshot.exists() ? userSnapshot.data() : null;
-  const adminByEmail = isAdminEmail(user.email || "");
+  const idToken = await user.getIdToken();
+  const adminByServer = await checkIsAdmin(idToken);
 
   await setDoc(
     userRef,
@@ -384,7 +385,7 @@ async function ensureUserProfile(user) {
       uid: user.uid,
       email: user.email || "",
       lastLoginAt: serverTimestamp(),
-      isAdmin: Boolean(existing?.isAdmin || adminByEmail)
+      isAdmin: Boolean(existing?.isAdmin || adminByServer)
     },
     { merge: true }
   );
@@ -393,7 +394,7 @@ async function ensureUserProfile(user) {
     ...(existing || {}),
     uid: user.uid,
     email: user.email || "",
-    isAdmin: Boolean(existing?.isAdmin || adminByEmail)
+    isAdmin: Boolean(existing?.isAdmin || adminByServer)
   };
 }
 

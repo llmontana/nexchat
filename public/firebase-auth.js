@@ -25,7 +25,7 @@ import {
   where,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import { isAdminEmail } from "./admin-config.js";
+import { checkIsAdmin } from "./admin-config.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs",
@@ -184,17 +184,17 @@ function renderPaymentPackages() {
       <article class="payment-package-card${featuredClass}">
         <div class="payment-package-top">
           <div>
-            <h4 class="payment-package-title">${pkg.title}</h4>
+            <h4 class="payment-package-title">${escapeHtml(pkg.title)}</h4>
           </div>
-          <div class="payment-package-diamond">${pkg.diamonds}<br>◈</div>
+          <div class="payment-package-diamond">${escapeHtml(String(pkg.diamonds))}<br>◈</div>
         </div>
-        <p>${pkg.description || ""}</p>
+        <p>${escapeHtml(pkg.description || "")}</p>
         <div class="payment-package-footer">
-          <div class="payment-package-price">${pkg.priceLabel || "-"}</div>
+          <div class="payment-package-price">${escapeHtml(pkg.priceLabel || "-")}</div>
           <button
             class="primary-button payment-package-button"
             type="button"
-            data-package-id="${pkg.id}"
+            data-package-id="${escapeHtml(pkg.id)}"
           >
             Ödemeye Geç
           </button>
@@ -536,14 +536,14 @@ function renderFriendsPanel() {
 async function ensureUserProfile(user) {
   const userRef = doc(db, "users", user.uid);
   const snapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
-  const email = user.email || "";
-  const adminByEmail = isAdminEmail(email);
+  const idToken = await user.getIdToken();
+  const adminByServer = await checkIsAdmin(idToken);
   const profilePayload = {
     uid: user.uid,
-    email,
+    email: user.email || "",
     provider: user.providerData?.[0]?.providerId || "password",
     lastLoginAt: serverTimestamp(),
-    isAdmin: snapshot.exists() ? Boolean(snapshot.data().isAdmin || adminByEmail) : adminByEmail
+    isAdmin: snapshot.exists() ? Boolean(snapshot.data().isAdmin || adminByServer) : adminByServer
   };
 
   if (!snapshot.exists()) {
@@ -829,7 +829,7 @@ async function finalizeSignedInUser(user, existingProfile) {
     username,
     gender: existingProfile?.gender || "",
     diamonds: Number(existingProfile?.diamonds || 0),
-    isAdmin: Boolean(existingProfile?.isAdmin || isAdminEmail(user.email || ""))
+    isAdmin: Boolean(existingProfile?.isAdmin || currentUserProfile?.isAdmin || false)
   };
 
   try {

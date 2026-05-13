@@ -12,8 +12,7 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const BAN_DURATION_MS = Number(process.env.BAN_DURATION_MS || 24 * 60 * 60 * 1000);
-const FIREBASE_WEB_API_KEY =
-  process.env.FIREBASE_WEB_API_KEY || "AIzaSyBRX7sufaar-yZYDXVc15eqXCdvJNDoDjs";
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || "";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "nexchat-69594";
 const FIREBASE_CLIENT_EMAIL = process.env.FIREBASE_CLIENT_EMAIL || "";
 const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY || "";
@@ -24,21 +23,23 @@ const CLOUDFLARE_TURN_TTL = Math.min(
   Number(process.env.CLOUDFLARE_TURN_TTL || 3600),
   48 * 60 * 60
 );
-const TURN_URLS = (process.env.TURN_URLS || "")
+const TURN_URLS = (process.env.TURN_URLS || "turn:openrelay.metered.ca:80,turn:openrelay.metered.ca:443,turns:openrelay.metered.ca:443")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
-const TURN_USERNAME = process.env.TURN_USERNAME || "";
-const TURN_CREDENTIAL = process.env.TURN_CREDENTIAL || "";
+const TURN_USERNAME = process.env.TURN_USERNAME || "openrelayproject";
+const TURN_CREDENTIAL = process.env.TURN_CREDENTIAL || "openrelayproject";
 const STUN_URLS = (process.env.STUN_URLS || "stun:stun.l.google.com:19302")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "sametyesr7@gmail.com")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
   .map((item) => item.trim().toLocaleLowerCase("tr-TR"))
   .filter(Boolean);
 const waitingQueue = [];
+const rateLimitStore = new Map();
+const MAX_IMAGE_DATA_LENGTH = 4 * 1024 * 1024;
 
 const peers = new Map();
 const socketProfiles = new Map();
@@ -60,6 +61,23 @@ let firestoreInitError = null;
 
 app.set("trust proxy", true);
 app.use(express.json({ limit: "2mb" }));
+
+function checkRateLimit(key, maxRequests, windowMs) {
+  const now = Date.now();
+  const record = rateLimitStore.get(key);
+
+  if (!record || now > record.resetAt) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
+    return false;
+  }
+
+  if (record.count >= maxRequests) {
+    return true;
+  }
+
+  record.count += 1;
+  return false;
+}
 
 function normalizePrivateKey(privateKey) {
   return privateKey ? privateKey.replace(/\\n/g, "\n") : "";
@@ -666,11 +684,9 @@ async function unbanIp(ip) {
     return false;
   }
 
-  const deleted = bannedIps.delete(ip);
-  if (deleted) {
-    await deleteBanFromPersistence(ip);
-  }
-  return deleted;
+  bannedIps.delete(ip);
+  await deleteBanFromPersistence(ip);
+  return true;
 }
 
 function isAdminEmail(email) {
@@ -682,34 +698,14 @@ function isAdminEmail(email) {
 }
 
 async function verifyFirebaseIdToken(idToken) {
-  if (!FIREBASE_WEB_API_KEY) {
-    throw new Error("Firebase API anahtari ayarlanmamis.");
+  if (!adminAuth) {
+    throw new Error("Firebase Auth hazir degil.");
   }
 
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        idToken
-      })
-    }
-  );
-
-  const data = await response.json();
-  if (!response.ok || !Array.isArray(data.users) || data.users.length === 0) {
-    const message =
-      data?.error?.message || `Kimlik dogrulamasi basarisiz oldu (${response.status}).`;
-    throw new Error(message);
-  }
-
-  const [user] = data.users;
+  const decoded = await adminAuth.verifyIdToken(idToken);
   return {
-    uid: user.localId || "",
-    email: user.email || ""
+    uid: decoded.uid || "",
+    email: decoded.email || ""
   };
 }
 
@@ -919,6 +915,15 @@ app.get("/api/rtc-config", async (request, response) => {
   }
 });
 
+app.get("/api/admin/check", async (request, response) => {
+  try {
+    await verifyAdminRequest(request);
+    response.json({ isAdmin: true });
+  } catch {
+    response.json({ isAdmin: false });
+  }
+});
+
 app.get("/api/admin/bans", async (request, response) => {
   try {
     await verifyAdminRequest(request);
@@ -1033,6 +1038,12 @@ app.get("/api/admin/reports", async (request, response) => {
 });
 
 app.post("/api/session-sync", async (request, response) => {
+  const syncIp = getRequestIp(request);
+  if (checkRateLimit(`session-sync:${syncIp}`, 20, 60000)) {
+    response.status(429).json({ message: "Cok fazla istek. Lutfen bekle." });
+    return;
+  }
+
   try {
     const authHeader = request.headers.authorization || "";
     const match = authHeader.match(/^Bearer\s+(.+)$/i);
@@ -1085,6 +1096,15 @@ io.on("connection", (socket) => {
       socket.emit("authentication-result", {
         ok: false,
         message: "Gecerli bir kimlik belirteci gerekli."
+      });
+      return;
+    }
+
+    const ip = getSocketIp(socket);
+    if (checkRateLimit(`auth:${ip}`, 5, 60000)) {
+      socket.emit("authentication-result", {
+        ok: false,
+        message: "Cok fazla kimlik dogrulama denemesi. Lutfen bekle."
       });
       return;
     }
@@ -1205,7 +1225,7 @@ io.on("connection", (socket) => {
 
   socket.on("report-user", async ({ imageData }) => {
     const partnerId = getPartnerId(socket.id);
-    if (!partnerId || typeof imageData !== "string" || imageData.length === 0) {
+    if (!partnerId || typeof imageData !== "string" || imageData.length === 0 || imageData.length > MAX_IMAGE_DATA_LENGTH) {
       socket.emit("report-result", {
         ok: false,
         message: "Rapor için geçerli bir görüntü bulunamadı."
