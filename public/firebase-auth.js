@@ -536,8 +536,13 @@ function renderFriendsPanel() {
 async function ensureUserProfile(user) {
   const userRef = doc(db, "users", user.uid);
   const snapshot = await getDocFromServer(userRef).catch(() => getDoc(userRef));
-  const idToken = await user.getIdToken();
-  const adminByServer = await checkIsAdmin(idToken);
+  let adminByServer = false;
+  try {
+    const idToken = await user.getIdToken();
+    adminByServer = await checkIsAdmin(idToken);
+  } catch {
+    adminByServer = false;
+  }
   const profilePayload = {
     uid: user.uid,
     email: user.email || "",
