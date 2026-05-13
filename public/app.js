@@ -558,24 +558,22 @@ flipCameraButton.addEventListener("click", async () => {
     return;
   }
 
-  const currentIndex = availableVideoInputs.findIndex(
-    (device) => device.deviceId === currentVideoInputId
-  );
-  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % availableVideoInputs.length : 0;
-  const nextDevice = availableVideoInputs[nextIndex];
-  if (!nextDevice) {
-    return;
-  }
+  const currentVideoTrack = localStream.getVideoTracks()[0];
+  const currentFacing = currentVideoTrack?.getSettings?.().facingMode || "";
+  const nextFacing = currentFacing === "user" ? "environment" : "user";
 
   flipCameraButton.disabled = true;
 
   try {
     const nextStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: {
-        deviceId: { exact: nextDevice.deviceId }
-      }
-    });
+      video: { facingMode: { exact: nextFacing } }
+    }).catch(() =>
+      navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: nextFacing }
+      })
+    );
 
     const nextVideoTrack = nextStream.getVideoTracks()[0];
     const oldVideoTrack = localStream.getVideoTracks()[0];
@@ -595,7 +593,7 @@ flipCameraButton.addEventListener("click", async () => {
     }
 
     localStream.addTrack(nextVideoTrack);
-    currentVideoInputId = nextDevice.deviceId;
+    currentVideoInputId = nextVideoTrack.getSettings?.().deviceId || currentVideoInputId;
     localVideo.srcObject = localStream;
     localVideo.play().catch(() => {});
     await refreshVideoInputs();

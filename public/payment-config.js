@@ -2,7 +2,7 @@ window.NEXCHAT_PAYMENT_PACKAGES = [
   {
     id: "starter-100",
     title: "100 Elmas",
-    diamonds: 100,
+    diamonds: 1000,
     priceLabel: "₺99,90",
     description: "Premium filtreleri denemek isteyenler için başlangıç paketi.",
     checkoutUrl: ""
