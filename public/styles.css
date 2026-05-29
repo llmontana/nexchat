@@ -665,13 +665,13 @@ body.is-desktop .diamond-count-badge {
 
 .payment-modal-sheet {
   position: relative;
-  width: min(760px, 100%);
+  width: min(980px, 100%);
   max-height: min(88vh, 920px);
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 24px;
+  gap: 20px;
+  padding: 28px;
   border-radius: 28px;
   background:
     radial-gradient(circle at top left, rgba(43, 241, 183, 0.12), transparent 28%),
@@ -700,14 +700,15 @@ body.is-desktop .diamond-count-badge {
 
 .payment-packages {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(230px, 1fr));
+  gap: 16px;
 }
 
 .payment-package-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  min-height: 248px;
   padding: 18px;
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.05);
@@ -730,7 +731,7 @@ body.is-desktop .diamond-count-badge {
 
 .payment-package-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -738,6 +739,7 @@ body.is-desktop .diamond-count-badge {
 .payment-package-title {
   margin: 0;
   font-size: 1.05rem;
+  line-height: 1.35;
 }
 
 .payment-package-diamond {
@@ -762,11 +764,13 @@ body.is-desktop .diamond-count-badge {
   color: var(--muted);
   line-height: 1.6;
   font-size: 0.88rem;
+  min-height: 68px;
 }
 
 .payment-package-footer {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   justify-content: space-between;
   gap: 12px;
   margin-top: auto;
@@ -775,11 +779,13 @@ body.is-desktop .diamond-count-badge {
 .payment-package-price {
   font-size: 1.15rem;
   font-weight: 800;
+  line-height: 1.2;
+  min-width: 0;
 }
 
 .payment-package-button {
   min-height: 42px;
-  padding: 10px 16px;
+  padding: 10px 18px;
   white-space: nowrap;
 }
 
