@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEXCHAT Anonim Sohbet</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <button
+      id="mobileDrawerToggle"
+      class="mobile-drawer-toggle"
+      type="button"
+      aria-expanded="true"
+      aria-label="Kontrolleri gizle"
+    >
+      <span class="mobile-drawer-arrow"></span>
+    </button>
+    <section id="authOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <div class="auth-badge">Firebase Auth</div>
+        <h2>Nexchat'e Giriş Yap</h2>
+        <p class="auth-copy">
+          Sohbete başlamadan önce bir hesapla giriş yapman gerekiyor.
+        </p>
+
+        <div class="social-auth">
+          <button id="googleLoginButton" class="social-button google-button" type="button">
+            Google ile Devam Et
+          </button>
+        </div>
+
+        <div class="auth-divider">
+          <span>E-posta ile devam et</span>
+        </div>
+
+        <form id="authForm" class="auth-form">
+          <input id="authEmail" type="email" placeholder="E-posta" autocomplete="email" required />
+          <input
+            id="authPassword"
+            type="password"
+            placeholder="Şifre"
+            autocomplete="current-password"
+            minlength="6"
+            required
+          />
+          <button id="authSubmitButton" class="primary-button" type="submit">Giriş Yap</button>
+        </form>
+
+        <div class="auth-actions">
+          <button id="authModeButton" class="ghost-button" type="button">Hesap Oluştur</button>
+        </div>
+
+        <div id="authStatus" class="auth-status">Hazır</div>
+      </div>
+    </section>
+    <section id="usernameOverlay" class="auth-overlay hidden">
+      <div class="auth-card">
+        <div class="auth-badge">Profil Kurulumu</div>
+        <h2>Kullanıcı Adını Seç</h2>
+        <p class="auth-copy">
+          İlk girişinde bir kullanıcı adı belirle. Bu ad profilinde saklanacak.
+        </p>
+
+        <form id="usernameForm" class="auth-form">
+          <input
+            id="usernameInput"
+            type="text"
+            placeholder="Kullanıcı adı"
+            minlength="3"
+            maxlength="20"
+            autocomplete="nickname"
+            required
+          />
+          <div class="gender-picker" aria-label="Cinsiyet seçimi">
+            <button
+              id="genderGirlButton"
+              class="gender-card"
+              type="button"
+              data-gender="kiz"
+              aria-pressed="false"
+            >
+              <span class="gender-icon" aria-hidden="true">♀</span>
+              <span class="gender-label">Kız</span>
+            </button>
+            <button
+              id="genderBoyButton"
+              class="gender-card"
+              type="button"
+              data-gender="erkek"
+              aria-pressed="false"
+            >
+              <span class="gender-icon" aria-hidden="true">♂</span>
+              <span class="gender-label">Erkek</span>
+            </button>
+          </div>
+          <input id="genderInput" type="hidden" value="" />
+          <button id="usernameSubmitButton" class="primary-button" type="submit">
+            Devam Et
+          </button>
+        </form>
+
+        <div id="usernameStatus" class="auth-status">Hazır</div>
+      </div>
+    </section>
+    <main class="app-shell">
+      <section class="hero-card">
+        <div class="eyebrow">Nex Anonim Görüntülü Sohbet</div>
+        <h1>Rastgele biriyle kameralı bağlan.</h1>
+        <p class="hero-copy">
+          Kamera ve mikrofon izni ver, sisteme gir ve otomatik olarak başka bir
+          kullanıcı ile eşleş.
+        </p>
+
+        <div class="controls">
+          <button id="startButton" class="primary-button">Kamerayı Aç</button>
+          <button id="findButton" class="ghost-button" disabled>Sohbete Başla</button>
+          <button id="nextButton" class="ghost-button" disabled>Next</button>
+        </div>
+
+        <div class="device-controls">
+          <button id="reportButton" class="ghost-button" disabled>Rapor Et</button>
+          <button id="toggleMicButton" class="ghost-button" disabled>Sesi Kapat</button>
+          <button id="toggleCameraButton" class="ghost-button" disabled>Kamerayı Kapat</button>
+        </div>
+
+        <div id="statusBadge" class="status-badge">Hazır</div>
+        <div id="sessionBadge" class="device-badge">Giriş yapılmadı</div>
+        <button id="adminPortalButton" class="ghost-button admin-portal-button hidden" type="button">
+          Admin
+        </button>
+        <button id="logoutButton" class="ghost-button" type="button" disabled>Çıkış Yap</button>
+      </section>
+
+      <section class="video-card">
+        <div class="video-grid">
+          <article class="video-panel">
+            <div id="localVideoLabel" class="video-label">Sen</div>
+            <button
+              id="flipCameraButton"
+              class="flip-camera-button"
+              type="button"
+              aria-label="Kamerayı çevir"
+              disabled
+            >
+              ⟲
+            </button>
+            <video id="localVideo" autoplay muted playsinline></video>
+          </article>
+
+          <article class="video-panel remote-panel">
+            <div class="remote-label-row">
+              <div id="remoteVideoLabel" class="video-label">Yabancı</div>
+              <button id="addFriendButton" class="add-friend-button" type="button" disabled>
+                <span class="add-friend-icon" aria-hidden="true">+</span>
+                <span class="add-friend-text">Ekle</span>
+              </button>
+            </div>
+            <video id="remoteVideo" autoplay playsinline webkit-playsinline="true"></video>
+            <div id="remotePlaceholder" class="video-placeholder">
+              Partner bağlanınca görüntü burada açılacak.
+            </div>
+          </article>
+        </div>
+
+        <div id="eventLog" class="event-log" aria-live="polite"></div>
+      </section>
+
+      <aside class="friends-card">
+        <div class="friends-header">
+          <div>
+            <div class="friends-eyebrow">Sosyal</div>
+            <h3>Arkadaş Listesi</h3>
+          </div>
+          <div class="friends-count">0</div>
+        </div>
+
+        <div class="friends-search">
+          <input
+            id="friendsSearch"
+            type="text"
+            placeholder="Arkadaş ara"
+            autocomplete="off"
+          />
+        </div>
+
+        <section class="request-section">
+          <div class="request-header">
+            <strong>Gelen İstekler</strong>
+            <span id="incomingRequestsCount" class="request-count">0</span>
+          </div>
+          <div id="incomingRequestsList" class="request-list">
+            <article class="request-empty">Şu an bekleyen istek yok.</article>
+          </div>
+        </section>
+
+        <section class="request-section">
+          <div class="request-header">
+            <strong>Gönderilen İstekler</strong>
+            <span id="outgoingRequestsCount" class="request-count">0</span>
+          </div>
+          <div id="outgoingRequestsList" class="request-list">
+            <article class="request-empty">Henüz kimseye istek göndermedin.</article>
+          </div>
+        </section>
+
+        <div id="friendsList" class="friends-list">
+          <article class="friend-empty">
+            <strong>Henüz arkadaş yok</strong>
+            <p>
+              Burada eklediğin kullanıcılar görünecek. İleride hızlıca tekrar bağlanmak için
+              bu alanı kullanabilirsin.
+            </p>
+          </article>
+        </div>
+
+        <section class="chat-section">
+          <div class="chat-header">
+            <div>
+              <div class="friends-eyebrow">Mesajlar</div>
+              <h4 id="chatTitle">Bir arkadaş seç</h4>
+            </div>
+            <button id="closeChatButton" class="chat-close-button ghost-button" type="button">
+              Kapat
+            </button>
+          </div>
+
+          <div id="chatMessages" class="chat-messages">
+            <article class="chat-empty">
+              Arkadaş listenden birini seçince yazışma burada açılacak.
+            </article>
+          </div>
+
+          <form id="chatForm" class="chat-form">
+            <input
+              id="chatInput"
+              type="text"
+              placeholder="Mesaj yaz"
+              autocomplete="off"
+              maxlength="400"
+              disabled
+            />
+            <button id="chatSendButton" class="primary-button" type="submit" disabled>
+              Gönder
+            </button>
+          </form>
+        </section>
+      </aside>
+
+      <aside class="premium-card premium-card-disabled" aria-disabled="true">
+        <div class="premium-header">
+          <div>
+            <div class="friends-eyebrow">Premium</div>
+            <h3>Elmas Merkezi</h3>
+          </div>
+          <div id="diamondCountBadge" class="diamond-count-badge">0</div>
+        </div>
+
+        <section class="diamond-hero">
+          <div class="diamond-icon" aria-hidden="true">◈</div>
+          <div>
+            <strong>Bakiyen</strong>
+            <div id="diamondBalance" class="diamond-balance">0 Elmas</div>
+          </div>
+        </section>
+
+        <section class="premium-section">
+          <div class="premium-section-title">Cinsiyet Filtresi</div>
+          <button
+            id="clearPremiumFilterButton"
+            class="ghost-button premium-clear-button hidden"
+            type="button"
+          >
+            Filtreyi Sıfırla
+          </button>
+
+          <article class="premium-option-card premium-option-girl locked">
+            <div>
+              <strong>Sadece Kız</strong>
+              <span>Premium filtre · eşleşme başına kullanılır</span>
+            </div>
+            <button id="premiumGirlButton" class="premium-cost premium-action-button" type="button">
+              9 ◈
+            </button>
+          </article>
+
+          <article class="premium-option-card premium-option-boy locked">
+            <div>
+              <strong>Sadece Erkek</strong>
+              <span>Premium filtre · eşleşme başına kullanılır</span>
+            </div>
+            <button id="premiumBoyButton" class="premium-cost premium-action-button" type="button">
+              5 ◈
+            </button>
+          </article>
+        </section>
+
+        <section class="premium-note">
+          <strong>Yakında aktif</strong>
+          <p>
+            Şimdilik burada bakiye ve filtre kartları görünüyor. Sonraki adımda ödeme ve
+            elmas düşme mantığını bağlayacağız.
+          </p>
+        </section>
+
+        <button id="buyDiamondsButton" class="primary-button premium-buy-button" type="button" disabled>
+          Elmas Satın Al
+        </button>
+
+        <div class="premium-disabled-overlay" role="status">
+          <strong>Devre dışı</strong>
+          <span>Güncellemeler için takipte kalın</span>
+        </div>
+      </aside>
+    </main>
+
+    <div id="paymentModal" class="payment-modal hidden" aria-hidden="true">
+      <div id="paymentModalBackdrop" class="payment-modal-backdrop"></div>
+      <section class="payment-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+        <div class="payment-modal-header">
+          <div>
+            <div class="friends-eyebrow">Ödeme</div>
+            <h3 id="paymentModalTitle">Elmas Paketi Seç</h3>
+          </div>
+          <button id="paymentModalClose" class="ghost-button payment-modal-close" type="button">
+            Kapat
+          </button>
+        </div>
+
+        <div id="paymentPackages" class="payment-packages"></div>
+        <div id="paymentModalStatus" class="payment-modal-status">
+          Bir paket seçip ödeme sayfasına geçebilirsin.
+        </div>
+      </section>
+    </div>
+
+    <nav class="mobile-tabbar" aria-label="Mobil gezinme">
+      <button id="mobileHomeTab" class="mobile-tab active" type="button">Ana Ekran</button>
+      <button id="mobileFriendsTab" class="mobile-tab" type="button">Arkadaşlar</button>
+      <button id="mobilePremiumTab" class="mobile-tab" type="button">Premium</button>
+    </nav>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/payment-config.js"></script>
+    <script type="module" src="/firebase-auth.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
